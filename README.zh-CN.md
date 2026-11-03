@@ -44,9 +44,15 @@ Conch 是一个原生的 macOS 应用，给整天在几台服务器之间来回�
 | **顺手** | 字体和光标设置实时生效，连接动画带真正能取消的按钮，专注模式该藏的时候就藏起来 |
 | **可信** | 主机密钥对照 `~/.ssh/known_hosts` 校验，首次连接弹指纹确认 |
 
-## 快速开始
+## 下载
 
-目前还没有签名的安装包，从源码构建大概一分钟：
+到 [Releases 页面](https://github.com/Merbeleue/conch/releases/latest) 下载
+**`Conch-0.1.0.dmg`**——通用二进制，Apple 芯片和 Intel 芯片都能用，要求 macOS 12 或更新。
+把应用拖进「应用程序」后，第一次请用右键 →「打开」：目前构建只做了 ad-hoc 签名、还没有
+公证，直接双击会被 Gatekeeper 拦下。（也可以在终端执行 `xattr -cr /Applications/conch.app`
+清除隔离标记。）每个版本的改动记录在 [CHANGELOG.md](./CHANGELOG.md)。
+
+## 从源码构建
 
 ```bash
 git clone https://github.com/Merbeleue/conch.git
@@ -56,8 +62,8 @@ wails3 build                       # → bin/conch（单个可执行文件，直
 ./bin/conch
 ```
 
-`wails3 dev` 是同样东西的开发版，Go 和前端都带热重载；`wails3 package` 会产出一个
-`conch.app`，可以直接拖进「应用程序」。未签名的构建第一次打开可能需要右键 →「打开」。
+`wails3 dev` 是同样东西的开发版，Go 和前端都带热重载；自己打 `.app` 和 `.dmg` 的命令
+见[开发](#开发)。
 
 除了你主动连接的主机，Conch 不会发起任何网络请求，没有账号体系、没有埋点、也不会偷偷
 检查更新。你保存的一切都在本机的 localStorage 里——详见[安全说明](#安全说明)。
@@ -124,8 +130,10 @@ wails3 build     # 生产构建，产物在 bin/
 wails3 package   # 生成 bin/conch.app（ad-hoc 签名）
 ```
 
-`wails3 package` 会先编译再打包并做 ad-hoc 签名；想要带背景图的 `.dmg`，用
-`darwin:package:dmg` 这个 task。
+`wails3 package` 会先编译再打包，并对 bundle 做 ad-hoc 签名。发版时用
+`wails3 task darwin:package:universal` 出 arm64 + x86_64 的通用 `bin/conch.app`，
+再用 `wails3 task darwin:create:dmg` 打成带背景图的 `bin/conch.dmg`
+（只想出当前架构的话，`darwin:package:dmg` 一步做完两件事）。
 
 改动 Go 服务方法或注册事件之后，重新生成 TypeScript 桥接层（生成结果已入库，
 所以刚 clone 下来不跑这步也能构建）：

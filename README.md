@@ -45,9 +45,16 @@ into docs/screenshots/ and uncomment:
 | **Comfort** | Global font and cursor preferences applied live, animated connect flow with a real cancel, focus mode that gets out of the way |
 | **Trust** | Host key verification against `~/.ssh/known_hosts` with a fingerprint dialog for first contact |
 
-## Quick start
+## Download
 
-There is no signed download yet — Conch is built from source in about a minute:
+Grab **`Conch-0.1.0.dmg`** from the [latest release](https://github.com/Merbeleue/conch/releases/latest)
+— a universal binary (Apple Silicon and Intel) for macOS 12 and newer. Drag the app
+into Applications, then launch it once with right-click → **Open**: builds are ad-hoc
+signed but not yet notarized, so Gatekeeper blocks the first plain double-click.
+(Or clear the quarantine flag with `xattr -cr /Applications/conch.app`.)
+Release notes live in [CHANGELOG.md](./CHANGELOG.md).
+
+## Build from source
 
 ```bash
 git clone https://github.com/Merbeleue/conch.git
@@ -57,9 +64,9 @@ wails3 build                       # → bin/conch (a single executable; just ru
 ./bin/conch
 ```
 
-`wails3 dev` does the same with hot reload for Go and the frontend, and
-`wails3 package` produces a `conch.app` bundle you can drag into Applications.
-Unsigned builds may need a right-click → Open the first time you launch them.
+`wails3 dev` does the same with hot reload for Go and the frontend, and the
+[Development](#development) section covers building the `.app` bundle and the
+`.dmg` yourself.
 
 Conch makes no network calls beyond the hosts you connect to, and there are no
 accounts, no telemetry and no update pinger. Everything you save stays in
@@ -128,8 +135,10 @@ wails3 build     # production binary in bin/
 wails3 package   # conch.app bundle in bin/ (ad-hoc signed)
 ```
 
-`wails3 package` builds the binary first, then wraps it and ad-hoc signs the
-bundle; a styled `.dmg` is available from the `darwin:package:dmg` task.
+`wails3 package` builds the binary first, then wraps it and ad-hoc signs the bundle.
+For a release, `wails3 task darwin:package:universal` produces a fat arm64 + x86_64
+`bin/conch.app` and `wails3 task darwin:create:dmg` wraps it into the styled
+`bin/conch.dmg` (`darwin:package:dmg` does both for the host architecture only).
 
 After changing a Go service method or a registered event, regenerate the
 TypeScript bridge (it is committed, so a fresh clone builds without this step):
