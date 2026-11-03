@@ -1,0 +1,15 @@
+{
+	"fixed": {
+		"file_version": "0.1.0"
+	},
+	"info": {
+		"0409": {
+			"ProductVersion": "0.1.0",
+			"CompanyName": "Conch",
+			"FileDescription": "Modern open-source SSH terminal",
+			"LegalCopyright": "2026 Conch contributors",
+			"ProductName": "Conch",
+			"Comments": "This is a comment"
+		}
+	}
+}

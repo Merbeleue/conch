@@ -1,0 +1,7 @@
+.task
+bin
+/conch
+.DS_Store
+frontend/dist
+frontend/node_modules
+build/windows/nsis/MicrosoftEdgeWebview2Setup.exe
