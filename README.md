@@ -16,6 +16,10 @@
   <img alt="Terminal" src="https://img.shields.io/badge/terminal-xterm.js%20%2B%20WebGL-2f9e6f">
 </p>
 
+<p align="center">
+  <a href="./README.zh-CN.md">简体中文</a> · English
+</p>
+
 ---
 
 Conch is a single native macOS app for people who live in a terminal across several servers. It is built with [Wails v3](https://wails.io) — Go handles the SSH connections, PTYs and SFTP, React renders the interface, and the terminal itself is xterm.js with WebGL, all inside Apple's own WKWebView. That means a Conch window opens fast, idles quietly, and looks like part of the system instead of a browser tab wearing a costume.
@@ -46,7 +50,7 @@ into docs/screenshots/ and uncomment:
 There is no signed download yet — Conch is built from source in about a minute:
 
 ```bash
-git clone https://github.com/<your-name>/conch.git
+git clone https://github.com/Merbeleue/conch.git
 cd conch
 npm --prefix frontend install
 wails3 build                       # → bin/conch (a single executable; just run it)
