@@ -22,6 +22,12 @@ export const trashName = isWindows ? "Recycle Bin" : "Trash";
 export const fileManagerLabel = isWindows ? "File Explorer" : "Finder";
 
 /**
+ * The prompt drawn in front of the settings font preview, in the style of this
+ * machine's own shell.
+ */
+export const promptSample = isWindows ? "PS C:\\Users\\you>" : "you@mac:~$";
+
+/**
  * Join a folder and an entry name the way the backend's filepath.Join would,
  * so a Windows drive root does not turn into "C:\Users\someone/Downloads".
  */

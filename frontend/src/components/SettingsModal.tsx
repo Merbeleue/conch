@@ -10,7 +10,7 @@ import {
   type AppSettings,
   type FontFamilyId,
 } from "../lib/settings";
-import { modKey, osName } from "../lib/platform";
+import { modKey, osName, promptSample } from "../lib/platform";
 import { ThemeGrid } from "./ThemePicker";
 
 interface SettingsModalProps {
@@ -144,7 +144,7 @@ export function SettingsModal({ settings, onChange, onClose }: SettingsModalProp
                   <div className="settings-row">
                     <div className="settings-row-label">
                       <span>Font family</span>
-                      <small>Missing fonts fall back to the next monospace</small>
+                      <small>Only families installed on this machine are listed</small>
                     </div>
                     <div className="settings-select-wrap">
                       <select
@@ -220,9 +220,14 @@ export function SettingsModal({ settings, onChange, onClose }: SettingsModalProp
                   }}
                   aria-hidden="true"
                 >
-                  <span className="terminal-preview-prompt">you@mac:~$</span>{" "}
-                  ssh you@example.com
-                  <span className="terminal-preview-cursor" />
+                  <span className="terminal-preview-line">
+                    <span className="terminal-preview-prompt">{promptSample}</span>{" "}
+                    ssh you@example.com
+                    <span className="terminal-preview-cursor" />
+                  </span>
+                  <span className="terminal-preview-sample">
+                    Sphinx of black quartz, judge my vow 0123456789
+                  </span>
                 </div>
 
                 <div className="settings-block">

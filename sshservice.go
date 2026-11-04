@@ -569,11 +569,13 @@ func (s *SSHService) pump(sess *sshSession) {
 	}()
 
 	app := application.Get()
-	ticker := time.NewTicker(8 * time.Millisecond)
+	ticker := time.NewTicker(outputFlushInterval)
 	defer ticker.Stop()
 
 	// Remote output is coalesced before it crosses the webview bridge: one
-	// emit per ~8ms instead of one per read keeps `cat` on a big file smooth.
+	// emit per flush interval instead of one per read keeps `cat` on a big file
+	// smooth. Every emit is a script evaluation on the webview's own thread, so
+	// the interval is tuned per platform rather than assumed to be free.
 	var pending []byte
 	flush := func() {
 		if len(pending) == 0 {
@@ -594,7 +596,7 @@ func (s *SSHService) pump(sess *sshSession) {
 			return
 		case chunk := <-chunks:
 			pending = append(pending, chunk...)
-			if len(pending) >= 64*1024 {
+			if len(pending) >= outputFlushLimit {
 				flush()
 			}
 		case <-ticker.C:

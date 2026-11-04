@@ -1,8 +1,18 @@
+import { isWindows } from "./platform";
 import { DEFAULT_THEME, isThemeId, type ThemeId } from "./themes";
 
 const STORAGE_KEY = "conch.settings.v1";
 
-export type FontFamilyId = "sfmono" | "jetbrains" | "menlo" | "monaco" | "system";
+export type FontFamilyId =
+  | "sfmono"
+  | "jetbrains"
+  | "menlo"
+  | "monaco"
+  | "system"
+  | "cascadia"
+  | "cascadiacode"
+  | "consolas"
+  | "courier";
 export type CursorStyle = "block" | "bar" | "underline";
 
 export interface FontFamilyChoice {
@@ -10,41 +20,133 @@ export interface FontFamilyChoice {
   label: string;
   /** Full CSS stack: the named family first, then reliable mono fallbacks. */
   stack: string;
+  /**
+   * False when the family is not guaranteed to be installed, so the picker has
+   * to measure it before offering it. A terminal font that silently falls back
+   * to another one is indistinguishable from a setting that does nothing.
+   */
+  shipped?: boolean;
 }
 
-export const FONT_FAMILIES: FontFamilyChoice[] = [
+// Every family here is monospace; mixing in a proportional one would break
+// xterm.js' cell grid. macOS lists stay as they were: all of them already
+// worked, so none is hidden by measurement.
+const MAC_FONT_FAMILIES: FontFamilyChoice[] = [
   {
     id: "sfmono",
     label: "SF Mono",
     stack: '"SF Mono", "JetBrains Mono", Menlo, ui-monospace, monospace',
+    shipped: true,
   },
   {
     id: "jetbrains",
     label: "JetBrains Mono",
     stack: '"JetBrains Mono", "SF Mono", Menlo, ui-monospace, monospace',
+    shipped: true,
   },
   {
     id: "menlo",
     label: "Menlo",
-    stack: 'Menlo, "SF Mono", ui-monospace, monospace',
+    stack: "Menlo, \"SF Mono\", ui-monospace, monospace",
+    shipped: true,
   },
   {
     id: "monaco",
     label: "Monaco",
-    stack: 'Monaco, "SF Mono", ui-monospace, monospace',
+    stack: "Monaco, \"SF Mono\", ui-monospace, monospace",
+    shipped: true,
   },
   {
     id: "system",
     label: "System Mono",
     stack: 'ui-monospace, "SF Mono", Menlo, monospace',
+    shipped: true,
   },
 ];
+
+// Windows ships Consolas and Courier New on every install. The Cascadia family
+// comes with Windows 11 and with Windows Terminal, so an older or trimmed-down
+// system may not have it; JetBrains Mono is only ever there by choice.
+const WINDOWS_FONT_FAMILIES: FontFamilyChoice[] = [
+  {
+    id: "cascadia",
+    label: "Cascadia Mono",
+    stack: '"Cascadia Mono", "Cascadia Code", Consolas, monospace',
+    shipped: false,
+  },
+  {
+    id: "cascadiacode",
+    label: "Cascadia Code",
+    stack: '"Cascadia Code", "Cascadia Mono", Consolas, monospace',
+    shipped: false,
+  },
+  {
+    id: "jetbrains",
+    label: "JetBrains Mono",
+    stack: '"JetBrains Mono", "Cascadia Mono", Consolas, monospace',
+    shipped: false,
+  },
+  {
+    id: "consolas",
+    label: "Consolas",
+    stack: 'Consolas, "Cascadia Mono", "Courier New", monospace',
+    shipped: true,
+  },
+  {
+    id: "courier",
+    label: "Courier New",
+    stack: '"Courier New", Consolas, monospace',
+    shipped: true,
+  },
+];
+
+const DEFAULT_FONT_FAMILY: FontFamilyId = isWindows ? "cascadia" : "sfmono";
+
+/** A family Chromium always has, used as the measuring baseline. */
+const FALLBACK_ONLY = isWindows ? "Consolas, monospace" : "monospace";
+
+/**
+ * True when the stack's first family is present. Measured by width: the probe
+ * re-uses the stack's own tail as the baseline, so a missing family paints the
+ * baseline and the two widths match. Only the first family is tested — later
+ * entries in the stack are fallbacks, and a different-looking fallback would
+ * read as a false positive.
+ */
+function isFontInstalled(stack: string): boolean {
+  if (typeof document === "undefined") {
+    return true;
+  }
+  const ctx = document.createElement("canvas").getContext("2d");
+  if (!ctx) {
+    return true;
+  }
+  // Long enough that two different mono fonts disagree on the total width.
+  const text = "@@@@@@@@@@@@@@@@@@@@@@@@@@@#%&$WiEr|/\\<>";
+  const family = stack.split(",")[0].trim();
+  ctx.font = `72px ${FALLBACK_ONLY}`;
+  const baseline = ctx.measureText(text).width;
+  ctx.font = `72px ${family}, ${FALLBACK_ONLY}`;
+  return Math.abs(ctx.measureText(text).width - baseline) > 0.5;
+}
 
 export const CURSOR_STYLES: { id: CursorStyle; label: string }[] = [
   { id: "bar", label: "Bar" },
   { id: "block", label: "Block" },
   { id: "underline", label: "Underline" },
 ];
+
+/**
+ * The families this machine can actually draw. Optional ones are measured
+ * because a dead entry in the picker reads as a broken setting: the terminal
+ * silently repaints in the fallback font and nothing appears to change.
+ */
+export const FONT_FAMILIES: FontFamilyChoice[] = (
+  isWindows ? WINDOWS_FONT_FAMILIES : MAC_FONT_FAMILIES
+).filter((font) => font.shipped !== false || isFontInstalled(font.stack));
+
+/** The first choice is the fallback when a stored id is not offered here. */
+export const DEFAULT_FONT: FontFamilyChoice =
+  FONT_FAMILIES.find((font) => font.id === DEFAULT_FONT_FAMILY) ?? FONT_FAMILIES[0];
 
 export const MIN_FONT_SIZE = 10;
 export const MAX_FONT_SIZE = 20;
@@ -75,7 +177,7 @@ function readStored(): StoredSettings {
 }
 
 export function fontStackFor(id: FontFamilyId): string {
-  return (FONT_FAMILIES.find((font) => font.id === id) ?? FONT_FAMILIES[0]).stack;
+  return (FONT_FAMILIES.find((font) => font.id === id) ?? DEFAULT_FONT).stack;
 }
 
 function isFontFamily(value: unknown): value is FontFamilyId {
@@ -94,7 +196,7 @@ export function loadSettings(): AppSettings {
   const stored = readStored();
   return {
     theme: isThemeId(stored.theme) ? stored.theme : DEFAULT_THEME,
-    fontFamily: isFontFamily(stored.fontFamily) ? stored.fontFamily : "sfmono",
+    fontFamily: isFontFamily(stored.fontFamily) ? stored.fontFamily : DEFAULT_FONT.id,
     fontSize:
       typeof stored.fontSize === "number" && Number.isFinite(stored.fontSize)
         ? clampFontSize(stored.fontSize)

@@ -5,6 +5,16 @@ package main
 import (
 	"fmt"
 	"strings"
+	"time"
+)
+
+// WebView2 runs each event emit as a script evaluation on its UI thread, which
+// costs more per call than the same call on WKWebView. Batching twice as much
+// output per emit halves that traffic, and the extra ~8ms is still under one
+// frame at 60Hz, so typing echo does not feel slower.
+const (
+	outputFlushInterval = 16 * time.Millisecond
+	outputFlushLimit    = 128 * 1024
 )
 
 // localSourceLabel names the local pane in the file manager's source picker.

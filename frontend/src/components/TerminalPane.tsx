@@ -47,6 +47,13 @@ const RETAIN_MS = 8000;
 const retained = new Map<string, RetainedTerminal>();
 /** Sessions whose pane is about to unmount for the last time. */
 const closedSessions = new Set<string>();
+/**
+ * The size each backend was last told about. It lives here rather than in the
+ * pane because a session outlives its panes: without it, every tab switch and
+ * every pane move re-sends the same size and makes the remote repaint its
+ * whole screen.
+ */
+const sentSizes = new Map<string, { cols: number; rows: number }>();
 let poolRoot: HTMLDivElement | null = null;
 
 function poolContainer(): HTMLDivElement {
@@ -61,6 +68,7 @@ function poolContainer(): HTMLDivElement {
 
 function destroyTerminal(sessionID: string, term: Terminal): void {
   detachSink(sessionID);
+  sentSizes.delete(sessionID);
   const element = term.element;
   if (element?.parentElement) {
     element.parentElement.removeChild(element);
@@ -166,19 +174,42 @@ export function TerminalPane({
     termRef.current = term;
     fitRef.current = fit;
 
-    const safeFit = () => {
+    // Fitting is not free: it measures the glyphs and can change the grid, which
+    // then resizes the remote terminal. A window drag fires ResizeObserver on
+    // every pixel, so the fits are coalesced into one per frame, and a fit is
+    // skipped outright when the box did not change size.
+    let boxWidth = -1;
+    let boxHeight = -1;
+    let fitFrame = 0;
+    const fitNow = (force = false) => {
+      fitFrame = 0;
+      const box = container.getBoundingClientRect();
+      const width = Math.round(box.width);
+      const height = Math.round(box.height);
+      if (!force && width === boxWidth && height === boxHeight) {
+        return;
+      }
+      boxWidth = width;
+      boxHeight = height;
       try {
         fit.fit();
       } catch {
         // The container can be zero-sized while the view is animating in.
       }
     };
-    safeFit();
+    const scheduleFit = () => {
+      if (fitFrame === 0) {
+        fitFrame = requestAnimationFrame(() => fitNow());
+      }
+    };
+    fitNow(true);
     if (reattached) {
       // The re-attached element still carries the size of its previous pane.
-      requestAnimationFrame(safeFit);
+      fitFrame = requestAnimationFrame(() => fitNow(true));
     } else {
-      document.fonts?.ready.then(safeFit).catch(() => undefined);
+      // Web fonts change the cell size without changing the pane's box, so this
+      // one fit has to happen even though the container has not moved.
+      document.fonts?.ready.then(() => fitNow(true)).catch(() => undefined);
     }
 
     attachSink(session.ID, (bytes) => term.write(bytes));
@@ -197,18 +228,63 @@ export function TerminalPane({
         SSHService.Write(id, data).catch(() => undefined);
       }
     });
-    const offResize = term.onResize(({ cols, rows }) => {
-      SSHService.Resize(session.ID, cols, rows).catch(() => undefined);
-    });
-    SSHService.Resize(session.ID, term.cols, term.rows).catch(() => undefined);
 
-    const observer = new ResizeObserver(safeFit);
+    // A resize is expensive on the far side: SSH re-wraps the screen and a local
+    // ConPTY makes the shell repaint all of it. So the backend only ever hears
+    // the size the user settles on — one report per ~90ms while the size keeps
+    // changing, and none at all when it is the size it already has.
+    const RESIZE_GAP_MS = 90;
+    let resizeTimer = 0;
+    let pendingCols = 0;
+    let pendingRows = 0;
+    let lastSentAt = 0;
+    const pushResize = () => {
+      resizeTimer = 0;
+      lastSentAt = performance.now();
+      sentSizes.set(session.ID, { cols: pendingCols, rows: pendingRows });
+      SSHService.Resize(session.ID, pendingCols, pendingRows).catch(() => undefined);
+    };
+    const reportResize = (cols: number, rows: number) => {
+      const known = sentSizes.get(session.ID);
+      if (known && known.cols === cols && known.rows === rows) {
+        return;
+      }
+      pendingCols = cols;
+      pendingRows = rows;
+      const wait = RESIZE_GAP_MS - (performance.now() - lastSentAt);
+      if (wait <= 0) {
+        if (resizeTimer !== 0) {
+          window.clearTimeout(resizeTimer);
+          resizeTimer = 0;
+        }
+        pushResize();
+      } else if (resizeTimer === 0) {
+        resizeTimer = window.setTimeout(pushResize, wait);
+      }
+    };
+
+    const offResize = term.onResize(({ cols, rows }) => {
+      reportResize(cols, rows);
+    });
+    reportResize(term.cols, term.rows);
+
+    const observer = new ResizeObserver(scheduleFit);
     observer.observe(container);
 
     return () => {
       observer.disconnect();
       offData.dispose();
       offResize.dispose();
+      if (fitFrame !== 0) {
+        cancelAnimationFrame(fitFrame);
+        fitFrame = 0;
+      }
+      // The pane may be parked rather than closed, so an unsent size is dropped
+      // here and re-reported by the next mount instead of racing a dead session.
+      if (resizeTimer !== 0) {
+        window.clearTimeout(resizeTimer);
+        resizeTimer = 0;
+      }
       registerActions(session.ID, null);
       termRef.current = null;
       fitRef.current = null;
