@@ -4,6 +4,41 @@ All notable changes to Conch are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [semantic versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- **Windows build.** Conch now runs natively on Windows 10/11, x64 and ARM64, in a
+  single installer that carries both architectures: local shells go through ConPTY
+  (PowerShell 7, Windows PowerShell, or `cmd` in that order), SFTP deletes land in the
+  Recycle Bin via the shell API, Windows reserved names and illegal characters are
+  rejected before a rename reaches the filesystem, and the window keeps the native
+  Windows title bar. `⌘` becomes `Ctrl` in every shortcut hint.
+- A **key-file picker** and a **per-platform font list** — Cascadia Mono, Cascadia Code,
+  JetBrains Mono, Consolas and Courier New are offered on Windows, the Mac families on
+  macOS — and a stored font that the current system does not have falls back to that
+  platform's default instead of rendering nothing.
+- Saved hosts can keep a key **passphrase** ("Save passphrase"), so an encrypted key
+  connects straight from the sidebar.
+- A **failed key login explains itself**: the message names the paths that were tried
+  and why each one was unusable — missing, unreadable (on macOS it points at Files and
+  Folders permission), protected by a passphrase, or the `.pub` file rather than the key.
+
+### Changed
+
+- Settings lists (font family) are drawn by the app instead of a native `<select>`,
+  following the active theme, keyboard-navigable, and clamped to the viewport.
+- Terminal output batching and resize reporting are tuned per platform — Windows gets a
+  wider output window and one resize per ~90ms only when the size actually changed —
+  which removes the dropped frames on WebView2.
+
+### Fixed
+
+- Legacy saved hosts that still said `authMethod: "agent"` are normalized to the private
+  key path at connect time.
+- Dragging a tab or pane on Windows no longer re-sends a resize the backend already has,
+  which used to make the remote shell repaint the whole screen.
+
 ## [0.1.0] - 2026-11-03
 
 First public release. Download `Conch-0.1.0.dmg` from the
@@ -60,6 +95,8 @@ First public release. Download `Conch-0.1.0.dmg` from the
   only on a machine you trust; unchecking "Save password" and reconnecting
   removes it.
 - No port forwarding, no `~/.ssh/config` import, no session restore after
-  relaunch, and the Linux/Windows targets are not built or tested.
+  relaunch. 0.1.0 shipped macOS binaries only — the Windows build is in
+  [Unreleased] above.
 
+[Unreleased]: https://github.com/Merbeleue/conch/compare/v0.1.0...HEAD
 [0.1.0]: https://github.com/Merbeleue/conch/releases/tag/v0.1.0

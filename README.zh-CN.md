@@ -5,13 +5,13 @@
 <h1 align="center">Conch</h1>
 
 <p align="center">
-  为 macOS 打造的现代开源 SSH 与本地终端。<br>
+  为 macOS 与 Windows 打造的现代开源 SSH 与本地终端。<br>
   原生窗口，不用 Electron，也不自带 Chromium。
 </p>
 
 <p align="center">
   <a href="./LICENSE"><img alt="License" src="https://img.shields.io/badge/license-MIT-6c5ce7"></a>
-  <img alt="Platform" src="https://img.shields.io/badge/platform-macOS%2012%2B-5b6478">
+  <img alt="Platform" src="https://img.shields.io/badge/platform-macOS%2012%2B%20%C2%B7%20Windows%2010%2B-5b6478">
   <a href="https://wails.io"><img alt="Built with Wails v3" src="https://img.shields.io/badge/built%20with-Wails%20v3-2b8aef"></a>
   <img alt="Terminal" src="https://img.shields.io/badge/terminal-xterm.js%20%2B%20WebGL-2f9e6f">
 </p>
@@ -22,7 +22,7 @@
 
 ---
 
-Conch 是一个原生的 macOS 应用，给整天在几台服务器之间来回切换的人用。它基于 [Wails v3](https://wails.io)：Go 负责 SSH 连接、PTY 和 SFTP，React 负责界面，终端本身是带 WebGL 的 xterm.js，整体跑在苹果自己的 WKWebView 里。所以 Conch 的窗口开得快、空载时安静，看起来就是系统的一部分，而不是一个换了皮的浏览器标签页。
+Conch 是一个原生应用，给整天在几台服务器之间来回切换的人用。它基于 [Wails v3](https://wails.io)：Go 负责 SSH 连接、PTY 和 SFTP，React 负责界面，终端本身是带 WebGL 的 xterm.js，在 macOS 上跑在苹果自己的 WKWebView 里，在 Windows 上跑在 WebView2 里。所以 Conch 的窗口开得快、空载时安静，看起来就是系统的一部分，而不是一个换了皮的浏览器标签页。
 
 设计时想的是日常工作流，而不是功能清单：同时挂着很多主机也不会丢掉回滚缓冲，把窗口拆来拆去不用重连，不离开当前标签就能往服务器传文件夹，几台机器要做同一件事时一条命令同时敲进去。
 
@@ -46,7 +46,10 @@ Conch 是一个原生的 macOS 应用，给整天在几台服务器之间来回�
 
 ## 下载
 
-到 [Releases 页面](https://github.com/Merbeleue/conch/releases/latest) 下载
+所有安装包都在 [Releases 页面](https://github.com/Merbeleue/conch/releases/latest)。
+
+### macOS
+
 **`Conch-0.1.0.dmg`**——通用二进制，Apple 芯片和 Intel 芯片都能用，要求 macOS 12 或更新。
 把应用拖进「应用程序」后，第一次启动需要手动放行：目前构建只做了 ad-hoc 签名、还没有公证，
 Gatekeeper 会提示「Apple 无法验证 "conch"…」。先双击一次让它被拦下，再打开
@@ -60,6 +63,17 @@ curl -fsSL https://github.com/Merbeleue/conch/releases/download/v0.1.0/Conch-0.1
   | tar -xz -C /Applications
 ```
 
+### Windows
+
+**`Conch-0.1.0-windows-installer.exe`** 里面同时装了 amd64 和 arm64 两份程序，安装时自动选
+对应机器的那一份，Intel/AMD 和 Windows-on-ARM 的电脑都能用。它按当前用户安装到
+`%LOCALAPPDATA%\Programs\Conch`，不弹管理员授权，并创建开始菜单和桌面快捷方式。构建没有
+代码签名，首次运行时 SmartScreen 会提示「Windows 已保护你的电脑」，点**更多信息 → 仍要运行**
+即可。如果这台机器还没有 Edge WebView2 运行时，安装程序会顺手帮你装上。
+
+**`Conch-0.1.0-windows-portable.zip`** 是免安装的另一种选择：解压后直接运行 `conch.exe`
+（x64）或 `conch-arm64.exe`。要求 Windows 10 或更新。
+
 每个版本的改动记录在 [CHANGELOG.md](./CHANGELOG.md)。
 
 ## 从源码构建
@@ -72,6 +86,12 @@ wails3 build                       # → bin/conch（单个可执行文件，直
 ./bin/conch
 ```
 
+在 Mac 或 Linux 上交叉编译 Windows 可执行文件：
+
+```bash
+wails3 task windows:build ARCH=amd64   # → bin/conch.exe
+```
+
 `wails3 dev` 是同样东西的开发版，Go 和前端都带热重载；自己打 `.app` 和 `.dmg` 的命令
 见[开发](#开发)。
 
@@ -82,8 +102,8 @@ wails3 build                       # → bin/conch（单个可执行文件，直
 
 - 原生窗口，不打包 Chromium
 - xterm.js 终端，WebGL 渲染，支持 256 色与真彩色
-- 本地 shell 会话：在 PTY 上跑你的登录 shell，不需要 sshd
-- 认证方式：私钥（支持 passphrase，带原生文件选择器）或密码
+- 本地 shell 会话：macOS 在 PTY 上跑你的登录 shell，Windows 用 ConPTY 跑 PowerShell（或 `cmd`），都不需要 sshd
+- 认证方式：私钥（支持 passphrase，带原生文件选择器）或密码；密钥登录失败时，提示会写清楚试过哪几个文件、每个为什么不能用，而不是一句「无法认证」
 - 主机密钥校验对照 `~/.ssh/known_hosts`，首次遇到新主机会弹出指纹确认框
 - 保存的主机可加标签；单击是「聚焦已打开的标签 / 编辑未连接的主机」，双击才是连接
 - 侧栏过滤框可按名称或 IP 搜索主机；在任意位置按 `⌘F` 直接跳过去
@@ -99,15 +119,17 @@ wails3 build                       # → bin/conch（单个可执行文件，直
 - 标签栏的「断开全部」会在确认后关掉所有会话
 - 专注模式：连上会话后侧栏自动收起，让终端占满窗口；顶栏的 Conch 标志按钮可以唤回，最后一个标签关闭时侧栏自动回来
 - 连接过程有过渡动画，带取消按钮和 `Esc` 快捷键；取消会同时中断还在等待的 TCP/SSH 握手
-- 可选「在应用内保存密码」，重连时不再问密码
+- 可选「在应用内保存密码」和「保存 passphrase」，从侧栏重连时不再问
 - 八套主题——五深色（Conch、Tide、Grove、Nebula、Graphite）和三浅色（Dawn、Paper、Mist）——界面和终端调色板一起换；在设置（`⌘,`）里全局指定，或用可视化选择器按主机覆盖，预览所见即所得，该会话激活期间由它接管整个窗口
-- 全局终端字体：在 设置 → 终端 里选 SF Mono、JetBrains Mono、Menlo、Monaco 或系统等宽，字号 10–20px；所有已打开的面板（含分屏）立即跟随，重排时保留回滚内容
+- 全局终端字体：在 设置 → 终端 里从系统里真实存在的等宽字体中选——macOS 是 SF Mono、JetBrains Mono、Menlo、Monaco、系统等宽，Windows 是 Cascadia Mono、Cascadia Code、JetBrains Mono、Consolas、Courier New——字号 10–20px；选择框是应用自己画的，深色浅色都看得清；所有已打开的面板（含分屏）立即跟随，重排时保留回滚内容
 - 全局光标设置：块状、竖线、下划线，闪烁可开关，设置里有实时预览
 - 广播输入：标签栏的 Broadcast 按钮把当前聚焦面板的按键镜像到所有在线会话；在线会话不足两个或你点了「断开全部」时它会自动关闭，没有可广播对象时按钮置灰并说明原因
-- 标签栏那颗醒目的 SFTP 药丸按钮打开文件管理器：它是*当前标签内的子视图*——顶部主机标签一直在，终端在底下继续跑，按 `Esc` 或「终端」按钮立刻回到命令行，每个标签都记得自己刚才在看哪个目录。左右两栏，左边是本地文件系统（可以用一个跟随应用自身样式的动画来源选择器切到任意其他在线会话），右边是这台已连接的主机，两边都能直接编辑路径栏。选中文件/文件夹后用中间导轨按钮、双击或拖拽传输；文件夹递归传输，两个方向都支持，远端来源还能直接送到另一台主机。目标已存在同名文件时，确认框会列出冲突项并提供「覆盖」（替换该文件）或「跳过」（完全不动它）；文件夹和被跳过的名字则按 Finder 习惯加 `(1)`、`(2)` 后缀，而把文件复制到自己身上会被拒绝，而不是清空原文件。右键某一行可做文件操作：行内重命名、Linux 主机上的权限修改（八进制输入框 + 实时 `-rwxr-xr-x` 预览 + 属主/属组/其他三列勾选）、删除——本地项目确认后移入 macOS 废纸篓，远端项目是彻底删除，确认框会明说。传输中的浮层卡片显示实时百分比、已传/总字节、当前文件、取消按钮，以及成功/失败/取消的明确结论；完成的传输会自己消失。这一切都跟随当前主题，浅色主题也不例外
+- 标签栏那颗醒目的 SFTP 药丸按钮打开文件管理器：它是*当前标签内的子视图*——顶部主机标签一直在，终端在底下继续跑，按 `Esc` 或「终端」按钮立刻回到命令行，每个标签都记得自己刚才在看哪个目录。左右两栏，左边是本地文件系统（可以用一个跟随应用自身样式的动画来源选择器切到任意其他在线会话），右边是这台已连接的主机，两边都能直接编辑路径栏。选中文件/文件夹后用中间导轨按钮、双击或拖拽传输；文件夹递归传输，两个方向都支持，远端来源还能直接送到另一台主机。目标已存在同名文件时，确认框会列出冲突项并提供「覆盖」（替换该文件）或「跳过」（完全不动它）；文件夹和被跳过的名字则按 Finder 习惯加 `(1)`、`(2)` 后缀，而把文件复制到自己身上会被拒绝，而不是清空原文件。右键某一行可做文件操作：行内重命名、Linux 主机上的权限修改（八进制输入框 + 实时 `-rwxr-xr-x` 预览 + 属主/属组/其他三列勾选）、删除——本地项目确认后移进回收站（macOS 是废纸篓），远端项目是彻底删除，确认框会明说。传输中的浮层卡片显示实时百分比、已传/总字节、当前文件、取消按钮，以及成功/失败/取消的明确结论；完成的传输会自己消失。这一切都跟随当前主题，浅色主题也不例外
 - 跟随窗口大小的可调整 PTY
 
 ## 快捷键
+
+在 Windows 上所有的 `⌘` 都换成 `Ctrl`，界面里的提示会按当前系统自己写。
 
 | 按键 | 作用 |
 | --- | --- |
@@ -121,11 +143,18 @@ wails3 build                       # → bin/conch（单个可执行文件，直
 
 ## 环境要求
 
-- macOS 12 或更新
+运行：
+
+- macOS 12 或更新，或 Windows 10 或更新（x64 与 ARM64）——Windows 版依赖
+  [Microsoft Edge WebView2 运行时](https://developer.microsoft.com/microsoft-edge/webview2/)，
+  Windows 11 自带，缺失时安装程序会自动拉取
+
+构建：
+
 - Go 1.26+
 - Node.js 20.19+
 - Wails v3 CLI
-- Xcode Command Line Tools
+- Xcode Command Line Tools（macOS）；打 Windows 安装包还需要 NSIS 3 的 `makensis`（`brew install makensis`）
 
 ```bash
 go install github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0
@@ -144,6 +173,26 @@ wails3 package   # 生成 bin/conch.app（ad-hoc 签名）
 `wails3 task darwin:package:universal` 出 arm64 + x86_64 的通用 `bin/conch.app`，
 再用 `wails3 task darwin:create:dmg` 打成带背景图的 `bin/conch.dmg`
 （只想出当前架构的话，`darwin:package:dmg` 一步做完两件事）。
+
+`darwin:package:universal` 会在 `bin/conch` 留一个通用（fat）二进制，之后 `go build -o bin/conch`
+会拒绝覆盖它并报 "already exists and is not an object file"——跑 `wails3 dev` 之前先删掉
+`bin/conch` 就行。
+
+Windows 打包在任意平台上都能做，只要有 `makensis`：
+
+```bash
+LC_ALL=en_US.UTF-8 wails3 task windows:build ARCH=arm64
+mv bin/conch.exe bin/conch-arm64.exe
+LC_ALL=en_US.UTF-8 wails3 task windows:build ARCH=amd64
+cd build/windows/nsis && makensis \
+  -DWAILS_INSTALL_SCOPE=user -DREQUEST_EXECUTION_LEVEL=user \
+  -DARG_WAILS_AMD64_BINARY="$PWD/../../../bin/conch.exe" \
+  -DARG_WAILS_ARM64_BINARY="$PWD/../../../bin/conch-arm64.exe" project.nsi
+```
+
+这样出来的是双架构合一个安装包；`wails3 task windows:create:nsis:installer ARCH=amd64 INSTALL_SCOPE=user`
+是单架构的一步式写法。注意 `makensis` 前面一定要导出一个真正的 UTF-8 locale，`LANG` 为空时它
+会在生成语言表时报 `std::bad_alloc` 直接退出。
 
 改动 Go 服务方法或注册事件之后，重新生成 TypeScript 桥接层（生成结果已入库，
 所以刚 clone 下来不跑这步也能构建）：
@@ -164,14 +213,22 @@ npm run build      # tsc + vite build
 
 ```
 main.go             Wails 应用初始化、窗口选项、事件注册
-sshservice.go       SSH 与本地 PTY 会话、认证、known_hosts 处理
+sshservice.go       SSH 会话、认证（密码/密钥/agent）、known_hosts 处理
+localterm.go        本地终端接口；localterm_unix.go（PTY）与
+                    localterm_windows.go（ConPTY）用构建标签分开
+platform_unix.go    分平台的文案、密钥路径提示、输出合批；
+                    platform_windows.go 是 Windows 侧的同名实现
+trash_unix.go       删除本地文件的平台差异（废纸篓 / 回收站）
+trash_windows.go
 sftpservice.go      双栏目录、传输、重命名/删除/权限与进度事件
 fileservice.go      原生密钥文件选择器
 frontend/src/App.tsx      会话、标签与工作区状态；快捷键
 frontend/src/components   界面：侧栏、标签栏、分屏、终端、SFTP 视图、各类弹窗
-frontend/src/lib          主题、设置、主机存储、分屏树、传输辅助
+frontend/src/lib          主题、设置、主机存储、分屏树、传输辅助，
+                          platform.ts 负责识别系统（Ctrl 与 ⌘、路径与文件名规则）
 frontend/bindings         由 Go 服务与事件生成的 TypeScript 绑定
-build/              Wails 构建资源——build/darwin 是 macOS 打包，build/windows 是 NSIS/MSIX 脚手架
+build/              Wails 构建资源——build/darwin 是 macOS 打包，build/windows
+                    是 NSIS 安装包与 MSIX 脚手架
 ```
 
 ## 终端数据是怎么流动的
@@ -183,35 +240,36 @@ SSH 连接和远端 PTY 都由 Go 持有。远端输出会做合并（约每 8ms
 
 ## 安全说明
 
-- 私钥口令只存在内存里。只有勾选「保存密码」时，密码才会写进应用的本地存储，
-  以便重连时跳过提示。这个值在 WebView 的 localStorage 里是明文——请只在可信的
-  机器上用它。取消勾选后重连，就会把它从已保存主机上移除。
+- 密码和私钥口令只有在勾选对应的「保存密码」/「保存 passphrase」时才会写进应用的本地
+  存储，以便从侧栏重连时跳过提示。这两个值在 WebView 的 localStorage 里是明文——请只在
+  可信的机器上用它。取消勾选后重连，就会把它从已保存主机上移除。
 - 遇到未知主机密钥会弹指纹确认框。点「信任」会把密钥追加到 `~/.ssh/known_hosts`
   （权限 0600）；取消则中止连接。
-- 已保存的主机（标签、地址、端口、用户名、认证方式、密钥路径、分组、主题、可选密码）
-  存在 WebView 的 localStorage 里，私钥口令不会。会话数量上限 20。
+- 已保存的主机（标签、地址、端口、用户名、认证方式、密钥路径、分组、主题、可选密码与
+  passphrase）存在 WebView 的 localStorage 里。会话数量上限 20。
 
 ## 后续计划
 
 - 端口转发（本地、远端、SOCKS）
 - 从 `~/.ssh/config` 导入主机，并读取其中的 `IdentityFile`/`User` 默认值
 - 可配置的滚动缓冲区大小，以及按主机的终端设置覆盖
-- 签名 + 公证的发布构建，提供可下载的 DMG
+- 签名 + 公证的 macOS 发布构建，以及带 Authenticode 签名的 Windows 安装包
 - 重启应用后恢复上次打开的标签
-- Windows 版本——`build/windows` 保留了 NSIS/MSIX 脚手架，但本地 shell 还需要一套
-  ConPTY 实现（`creack/pty` 只支持 Unix），目前那边一次都没跑过
+- Windows 收尾：告诉 xterm.js 自己跑在 ConPTY 上（`windowsPty`）以便换行重排和 shell
+  对齐，提供机器级安装范围，密钥选择器默认打开 `%USERPROFILE%\.ssh`
 
 ## 贡献
 
-欢迎提 Issue 和 PR——尤其是那些我还没遇到的 macOS 行为问题。提交前请先跑一遍项目
-一直保持通过的检查：
+欢迎提 Issue 和 PR——尤其是那些我还没遇到的平台行为问题，Windows 那边实际跑过的时间比
+macOS 少。提交前请先跑一遍项目一直保持通过的检查：
 
 ```bash
 cd frontend && npx tsc --noEmit && npm run build
 cd .. && go vet ./... && go build -o bin/conch .
+GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -o /tmp/conch.exe .
 ```
 
-代码结构刻意保持扁平：后端只有四个 Go 文件，界面都在 `frontend/src/components`。
+代码结构刻意保持扁平：后端就是那几个 Go 文件，界面都在 `frontend/src/components`。
 动手前值得知道的两条约定——主题色只能来自 `frontend/src/lib/themes.ts`（组件里不要
 硬编码色值，另外浅色主题会把 `--overlay-rgb` 翻成墨色，所以任何新界面都要补一段
 `:root[data-scheme="light"]` 样式）；SFTP 视图里的文件操作统一走 `sftpservice.go`
