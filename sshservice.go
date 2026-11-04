@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"encoding/base64"
@@ -174,7 +175,7 @@ func (s *SSHService) Connect(req ConnectRequest) (*SessionInfo, error) {
 		return pending != nil && pending.isCancelled()
 	}
 
-	authMethods, cleanups, err := buildAuthMethods(req)
+	authMethods, cleanups, keyNotes, err := buildAuthMethods(req)
 	if err != nil {
 		return nil, err
 	}
@@ -223,7 +224,7 @@ func (s *SSHService) Connect(req ConnectRequest) (*SessionInfo, error) {
 		if cancelled() {
 			return nil, errConnectCancelled
 		}
-		return nil, formatDialError(err, addr)
+		return nil, formatDialError(err, addr, keyNotes...)
 	}
 	client := ssh.NewClient(sshConn, chans, reqs)
 	if pending != nil && !pending.attachClient(client) {
@@ -687,7 +688,10 @@ func (s *SSHService) finish(sess *sshSession, reason string, err error) {
 	}
 }
 
-func buildAuthMethods(req ConnectRequest) ([]ssh.AuthMethod, []func(), error) {
+// buildAuthMethods turns the form values into SSH auth methods. The returned
+// notes explain every key that could not be used, so a failed handshake can
+// tell the user what was actually tried instead of just "authentication failed".
+func buildAuthMethods(req ConnectRequest) ([]ssh.AuthMethod, []func(), []string, error) {
 	method := strings.ToLower(strings.TrimSpace(req.AuthMethod))
 	if method == "" {
 		method = "auto"
@@ -696,6 +700,7 @@ func buildAuthMethods(req ConnectRequest) ([]ssh.AuthMethod, []func(), error) {
 	var (
 		methods  []ssh.AuthMethod
 		cleanups []func()
+		notes    []string
 	)
 
 	useAgent := method == "agent" || method == "auto"
@@ -706,28 +711,39 @@ func buildAuthMethods(req ConnectRequest) ([]ssh.AuthMethod, []func(), error) {
 		sock := os.Getenv("SSH_AUTH_SOCK")
 		if sock == "" {
 			if method == "agent" {
-				return nil, nil, errors.New("ssh-agent is not running (SSH_AUTH_SOCK is empty)")
+				return nil, nil, nil, errors.New("ssh-agent is not running (SSH_AUTH_SOCK is empty)")
 			}
 		} else {
 			conn, err := net.Dial("unix", sock)
 			if err != nil {
 				if method == "agent" {
-					return nil, nil, fmt.Errorf("connect to ssh-agent: %w", err)
+					return nil, nil, nil, fmt.Errorf("connect to ssh-agent: %w", err)
 				}
 			} else {
 				cleanups = append(cleanups, func() { _ = conn.Close() })
 				agentClient := agent.NewClient(conn)
+				if keys, err := agentClient.List(); err == nil && len(keys) == 0 {
+					notes = append(notes, "ssh-agent is running but holds no keys")
+				}
 				methods = append(methods, ssh.PublicKeysCallback(agentClient.Signers))
 			}
 		}
 	}
 
+	paths := keyPaths(req.KeyPath)
 	if useKey {
-		var keyErrors []string
+		explicit := len(paths) == 1 && strings.TrimSpace(req.KeyPath) != ""
 		found := false
-		for _, path := range keyPaths(req.KeyPath) {
+		for _, path := range paths {
 			keyBytes, err := os.ReadFile(path)
 			if err != nil {
+				if os.IsNotExist(err) {
+					if explicit {
+						notes = append(notes, fmt.Sprintf("%s does not exist", path))
+					}
+					continue
+				}
+				notes = append(notes, fmt.Sprintf("%s: %s", path, describeReadError(err)))
 				continue
 			}
 			found = true
@@ -739,23 +755,23 @@ func buildAuthMethods(req ConnectRequest) ([]ssh.AuthMethod, []func(), error) {
 				signer, err = ssh.ParsePrivateKey(keyBytes)
 			}
 			if err != nil {
-				keyErrors = append(keyErrors, fmt.Sprintf("%s: %v", path, err))
+				notes = append(notes, fmt.Sprintf("%s: %s", path, describeKeyError(err, keyBytes, req.Passphrase != "")))
 				continue
 			}
 			methods = append(methods, ssh.PublicKeys(signer))
 		}
-		if len(keyErrors) > 0 && method == "key" && len(methods) == 0 {
-			return nil, nil, errors.New(strings.Join(keyErrors, "; "))
+		if method == "key" && !found && len(notes) == 0 {
+			return nil, nil, nil, fmt.Errorf("no private key found at %s", strings.Join(paths, ", "))
 		}
-		if method == "key" && !found {
-			return nil, nil, fmt.Errorf("no private key found at %s", strings.Join(keyPaths(req.KeyPath), ", "))
+		if method == "key" && len(methods) == 0 {
+			return nil, nil, nil, errors.New(joinOrNotes(notes, "the selected private key could not be used"))
 		}
 	}
 
 	if usePassword {
 		if req.Password == "" {
 			if method == "password" {
-				return nil, nil, errors.New("password is required")
+				return nil, nil, nil, errors.New("password is required")
 			}
 		} else {
 			methods = append(methods, ssh.Password(req.Password))
@@ -763,9 +779,39 @@ func buildAuthMethods(req ConnectRequest) ([]ssh.AuthMethod, []func(), error) {
 	}
 
 	if len(methods) == 0 {
-		return nil, nil, errors.New("no authentication method available: start ssh-agent, add a key, or enter a password")
+		return nil, nil, notes, errors.New(joinOrNotes(notes, "no authentication method available: add a key, or enter a password"))
 	}
-	return methods, cleanups, nil
+	return methods, cleanups, notes, nil
+}
+
+func joinOrNotes(notes []string, fallback string) string {
+	if len(notes) == 0 {
+		return fallback
+	}
+	return strings.Join(notes, "; ")
+}
+
+// describeReadError turns a file error into something worth showing in the
+// connect panel. macOS refuses apps started from the Dock access to
+// ~/Downloads, ~/Desktop and ~/Documents without an explicit grant, and that
+// looks exactly like a broken key unless it is named.
+func describeReadError(err error) string {
+	if errors.Is(err, os.ErrPermission) {
+		return "permission denied" + keyPermissionHint()
+	}
+	return err.Error()
+}
+
+func describeKeyError(err error, keyBytes []byte, gavePassphrase bool) string {
+	text := err.Error()
+	switch {
+	case !gavePassphrase && strings.Contains(text, "passphrase"):
+		return "is protected by a passphrase — enter it above, or use a key without one"
+	case !bytes.Contains(keyBytes, []byte("-----BEGIN")):
+		return "does not look like a private key — choose the key itself, not the .pub file"
+	default:
+		return text
+	}
 }
 
 func hostKeyCallback(addr string, trustNew bool) (ssh.HostKeyCallback, error) {
@@ -834,7 +880,8 @@ func knownHostsPath() string {
 }
 
 func keyPaths(explicit string) []string {
-	if explicit = strings.TrimSpace(explicit); explicit != "" {
+	// A path pasted from a terminal often arrives wrapped in quotes.
+	if explicit = strings.Trim(strings.TrimSpace(explicit), `"'`); explicit != "" {
 		return []string{expandHome(explicit)}
 	}
 
@@ -876,14 +923,25 @@ func newSessionID() string {
 	return hex.EncodeToString(buf)
 }
 
-func formatDialError(err error, addr string) error {
+// formatDialError turns a low-level dial or handshake failure into something a
+// terminal user can act on. `notes` carry why a key was skipped, which is the
+// difference between "authentication failed" and a fixable sentence.
+func formatDialError(err error, addr string, notes ...string) error {
 	msg := err.Error()
 	// Host key errors are already user-facing; drop the handshake wrapper.
 	if idx := strings.Index(msg, errUnknownHostKey.Error()); idx >= 0 {
 		return errors.New(msg[idx:])
 	}
 	if strings.Contains(msg, "unable to authenticate") {
+		if len(notes) > 0 {
+			return fmt.Errorf("authentication failed for %s — %s", addr, strings.Join(notes, "; "))
+		}
 		return fmt.Errorf("authentication failed for %s: check your username and credentials", addr)
+	}
+	if strings.Contains(msg, "no supported methods") || strings.Contains(msg, "none no more methods to try") {
+		if len(notes) > 0 {
+			return fmt.Errorf("the server refused every method for %s — %s", addr, strings.Join(notes, "; "))
+		}
 	}
 	return fmt.Errorf("connect to %s: %w", addr, err)
 }

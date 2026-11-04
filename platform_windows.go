@@ -49,3 +49,9 @@ func platformNameProblem(name string) string {
 	}
 	return ""
 }
+
+// keyPermissionHint is the Windows half of the read-failure message: there is
+// no per-folder consent, so it is about the file itself and its ACL.
+func keyPermissionHint() string {
+	return " — check the path and that your Windows account can read this file"
+}

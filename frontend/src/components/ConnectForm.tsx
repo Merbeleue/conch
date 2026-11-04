@@ -48,7 +48,10 @@ export function ConnectForm({
   );
   const [password, setPassword] = useState(initial?.password ?? "");
   const [keyPath, setKeyPath] = useState(initial?.keyPath || "~/.ssh/id_ed25519");
-  const [passphrase, setPassphrase] = useState("");
+  const [passphrase, setPassphrase] = useState(initial?.passphrase ?? "");
+  const [savePassphrase, setSavePassphrase] = useState(
+    initial?.authMethod === "key" && Boolean(initial?.passphrase),
+  );
   const [pickingKey, setPickingKey] = useState(false);
   const [savePassword, setSavePassword] = useState(
     initial?.authMethod === "password" && Boolean(initial?.password),
@@ -102,6 +105,7 @@ export function ConnectForm({
       Rows: 32,
       TrustNewHostKey: false,
       RememberPassword: authMethod === "password" && savePassword,
+      RememberPassphrase: authMethod === "key" && savePassphrase,
       Label: label.trim(),
       Group: resolveGroup(group),
       Theme: theme,
@@ -265,6 +269,19 @@ export function ConnectForm({
                       placeholder="Only if the key is encrypted"
                       autoComplete="off"
                     />
+                  </label>
+                  <label className="check">
+                    <input
+                      type="checkbox"
+                      checked={savePassphrase}
+                      onChange={(event) => setSavePassphrase(event.target.checked)}
+                    />
+                    <span>
+                      Save passphrase
+                      <span className="check-hint">
+                        Needed for an encrypted key to connect from the sidebar
+                      </span>
+                    </span>
                   </label>
                 </>
               )}

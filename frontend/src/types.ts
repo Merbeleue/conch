@@ -23,6 +23,12 @@ export interface ConnectRequest {
   Rows: number;
   TrustNewHostKey: boolean;
   RememberPassword: boolean;
+  /**
+   * Frontend-only: keep the key passphrase with the saved host, the same way a
+   * password can be kept. Without it a passphrase-protected key can only be
+   * used from the form, never from the sidebar.
+   */
+  RememberPassphrase: boolean;
   Label: string;
   /** Frontend-only: saved-host group name. */
   Group: string;
@@ -41,6 +47,8 @@ export interface SavedHost {
   label: string;
   group: string;
   password: string;
+  /** Passphrase for `keyPath`; empty means the key is unencrypted or unknown. */
+  passphrase: string;
   /** Empty means the host follows the global theme. */
   theme: ThemeId | "";
   lastUsed: number;

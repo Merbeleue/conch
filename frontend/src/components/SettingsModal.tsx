@@ -11,7 +11,18 @@ import {
   type FontFamilyId,
 } from "../lib/settings";
 import { modKey, osName, promptSample } from "../lib/platform";
+import { AppSelect, type AppSelectOption } from "./AppSelect";
 import { ThemeGrid } from "./ThemePicker";
+
+// Built once: the list comes from a module constant, and a stable identity keeps
+// the list box from re-wiring its listeners on every render.
+const FONT_OPTIONS: AppSelectOption<FontFamilyId>[] = FONT_FAMILIES.map((font) => ({
+  value: font.id,
+  label: font.label,
+  // Each row is drawn in the font it names, so the picker shows the difference
+  // it is about to make rather than five identical words.
+  font: font.stack,
+}));
 
 interface SettingsModalProps {
   settings: AppSettings;
@@ -146,24 +157,14 @@ export function SettingsModal({ settings, onChange, onClose }: SettingsModalProp
                       <span>Font family</span>
                       <small>Only families installed on this machine are listed</small>
                     </div>
-                    <div className="settings-select-wrap">
-                      <select
-                        className="settings-select"
-                        value={settings.fontFamily}
-                        onChange={(event) =>
-                          onChange({ fontFamily: event.target.value as FontFamilyId })
-                        }
-                      >
-                        {FONT_FAMILIES.map((font) => (
-                          <option key={font.id} value={font.id}>
-                            {font.label}
-                          </option>
-                        ))}
-                      </select>
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                        <path d="m7 9.5 5 5 5-5" />
-                      </svg>
-                    </div>
+                    <AppSelect
+                      className="settings-select"
+                      label="Terminal font family"
+                      head="Terminal font"
+                      value={settings.fontFamily}
+                      options={FONT_OPTIONS}
+                      onChange={(fontFamily) => onChange({ fontFamily })}
+                    />
                   </div>
 
                   <div className="settings-row">

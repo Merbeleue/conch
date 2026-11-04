@@ -1671,19 +1671,23 @@ function escapeRegExp(value: string): string {
 
 function savedHostRequest(host: SavedHost): ConnectRequest {
   const hasPassword = host.authMethod === "password" && host.password !== "";
+  const hasPassphrase = host.authMethod === "key" && host.passphrase !== "";
   return {
     RequestID: "",
     Host: host.host,
     Port: host.port,
     User: host.user,
-    AuthMethod: host.authMethod,
+    // Entries saved before key auth existed say "agent"; there is no agent in
+    // a GUI app, so connect with the key instead.
+    AuthMethod: host.authMethod === "agent" ? "key" : host.authMethod,
     Password: hasPassword ? host.password : "",
     KeyPath: host.keyPath,
-    Passphrase: "",
+    Passphrase: hasPassphrase ? host.passphrase : "",
     Cols: 120,
     Rows: 32,
     TrustNewHostKey: false,
     RememberPassword: hasPassword,
+    RememberPassphrase: hasPassphrase,
     Label: host.label,
     Group: host.group,
     Theme: host.theme,

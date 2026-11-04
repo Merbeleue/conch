@@ -4153,25 +4153,18 @@ body.is-resizing-row * {
   font-size: 10.5px;
 }
 
-.settings-select-wrap {
-  position: relative;
-  flex-shrink: 0;
-}
+/* ---------- Shared list box (AppSelect) ---------- */
 
 .settings-select {
-  appearance: none;
-  -webkit-appearance: none;
   height: 32px;
   min-width: 172px;
-  padding: 0 30px 0 11px;
+  padding: 0 10px 0 11px;
   border: 1px solid var(--border);
   border-radius: 8px;
   background: rgba(var(--overlay-rgb), 0.04);
   color: var(--text);
   font-family: inherit;
   font-size: 12px;
-  cursor: pointer;
-  transition: border-color 0.16s ease, background 0.16s ease, box-shadow 0.16s ease;
 }
 
 .settings-select:hover {
@@ -4179,21 +4172,156 @@ body.is-resizing-row * {
   background: rgba(var(--overlay-rgb), 0.06);
 }
 
+.settings-select.is-open,
 .settings-select:focus-visible {
   outline: none;
   border-color: rgba(var(--accent-rgb), 0.55);
+  background: rgba(var(--accent-rgb), 0.08);
   box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.13);
 }
 
-.settings-select-wrap > svg {
-  position: absolute;
-  top: 50%;
-  right: 10px;
+.app-select-trigger {
+  --wails-draggable: no-drag;
+  appearance: none;
+  -webkit-appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.16s ease, background 0.16s ease, box-shadow 0.16s ease;
+}
+
+.app-select-trigger-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app-select-chevron {
   width: 12px;
   height: 12px;
-  transform: translateY(-50%);
+  flex: 0 0 12px;
   color: var(--faint);
-  pointer-events: none;
+}
+
+.app-select-menu {
+  --wails-draggable: no-drag;
+  position: fixed;
+  z-index: 150;
+  max-height: min(340px, calc(100vh - 24px));
+  padding: 7px;
+  overflow-y: auto;
+  border: 1px solid var(--border-strong);
+  border-radius: 12px;
+  background: linear-gradient(180deg, var(--menu-top), var(--menu-bottom));
+  box-shadow:
+    0 24px 60px rgba(var(--ink-rgb), var(--shadow-a3)),
+    inset 0 1px 0 rgba(var(--overlay-rgb), 0.06);
+  transform-origin: top left;
+  animation: app-select-menu-in 0.16s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+
+.app-select-menu.is-above {
+  transform-origin: bottom left;
+  animation-name: app-select-menu-in-above;
+}
+
+@keyframes app-select-menu-in {
+  from {
+    opacity: 0;
+    transform: translateY(-5px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes app-select-menu-in-above {
+  from {
+    opacity: 0;
+    transform: translateY(5px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.app-select-menu-head {
+  padding: 4px 9px 6px;
+  color: var(--faint);
+  font-size: 8.5px;
+  font-weight: 650;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.app-select-option {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 9px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text);
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.13s ease, border-color 0.13s ease;
+}
+
+.app-select-option.is-active {
+  background: rgba(var(--overlay-rgb), 0.055);
+  border-color: rgba(var(--overlay-rgb), 0.06);
+}
+
+.app-select-option.is-current {
+  background: rgba(var(--accent-rgb), 0.11);
+  border-color: rgba(var(--accent-rgb), 0.24);
+}
+
+.app-select-option.is-current.is-active {
+  background: rgba(var(--accent-rgb), 0.16);
+}
+
+.app-select-option-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.app-select-option-label {
+  overflow: hidden;
+  color: var(--text);
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app-select-option-hint {
+  overflow: hidden;
+  color: var(--faint);
+  font-family: "SF Mono", Menlo, Consolas, monospace;
+  font-size: 9px;
+  letter-spacing: 0.015em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app-select-check {
+  width: 15px;
+  height: 15px;
+  flex: 0 0 15px;
+  color: var(--accent);
 }
 
 .font-size-control {

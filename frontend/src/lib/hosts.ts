@@ -147,11 +147,12 @@ function entryFromRequest(req: ConnectRequest): Omit<SavedHost, "id" | "lastUsed
     host: req.Host.trim(),
     port: req.Port,
     user: req.User.trim(),
-    authMethod: req.AuthMethod,
+    authMethod: req.AuthMethod === "agent" ? "key" : req.AuthMethod,
     keyPath: req.AuthMethod === "key" ? req.KeyPath.trim() : "",
     label: (req.Label ?? "").trim(),
     group: (req.Group ?? "").trim(),
     password: req.AuthMethod === "password" && req.RememberPassword ? req.Password : "",
+    passphrase: req.AuthMethod === "key" && req.RememberPassphrase ? req.Passphrase : "",
     theme: isThemeId(req.Theme) ? req.Theme : "",
   };
 }
@@ -229,6 +230,9 @@ function normalizeHost(host: SavedHost): SavedHost {
     label: typeof host.label === "string" ? host.label : "",
     group: typeof host.group === "string" ? host.group : "",
     password: typeof host.password === "string" ? host.password : "",
+    passphrase: typeof host.passphrase === "string" ? host.passphrase : "",
+    // Agent auth is no longer offered; an old entry meant its key.
+    authMethod: host.authMethod === "agent" ? "key" : host.authMethod,
     theme: isThemeId(host.theme) ? host.theme : "",
   };
 }
