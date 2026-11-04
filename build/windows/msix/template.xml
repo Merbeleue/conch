@@ -17,7 +17,7 @@
         PackageDisplayName="Conch"
         PublisherName="CN=Conch"
         PublisherDisplayName="Conch"
-        Version="0.1.0.0"
+        Version="0.2.0.0"
         PackageDescription="Modern open-source SSH terminal">
         <Capabilities>
             <Capability Name="runFullTrust" />
