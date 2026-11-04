@@ -17,7 +17,7 @@ import (
 // startPlatformShell runs the shell inside a ConPTY pseudo-console, which is
 // what gives a GUI process an interactive console without popping a window.
 // ConPTY speaks UTF-8 on both pipes, so xterm.js needs no transcoding.
-func startPlatformShell(argv []string, dir string, cols int, rows int) (localTerminal, error) {
+func startPlatformShell(argv []string, dir string, cols int, rows int, termType string) (localTerminal, error) {
 	if len(argv) == 0 {
 		return nil, errors.New("no local shell to start")
 	}
@@ -28,7 +28,7 @@ func startPlatformShell(argv []string, dir string, cols int, rows int) (localTer
 		commandLine(argv),
 		conpty.ConPtyDimensions(cols, rows),
 		conpty.ConPtyWorkDir(dir),
-		conpty.ConPtyEnv(os.Environ()),
+		conpty.ConPtyEnv(envWithTerm(termType)),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("start local shell: %w", err)

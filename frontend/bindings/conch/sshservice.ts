@@ -27,10 +27,12 @@ export function Disconnect(sessionID: string): $CancellablePromise<void> {
 /**
  * OpenLocal starts the user's login shell on a local terminal — a PTY on
  * macOS, a ConPTY on Windows. It shares the SSH session plumbing so the
- * frontend treats both kinds of terminal identically.
+ * frontend treats both kinds of terminal identically. termType becomes the
+ * shell's TERM, so `tput colors`, prompts and ls colours match what the user
+ * declared for their remote sessions.
  */
-export function OpenLocal(): $CancellablePromise<$models.SessionInfo | null> {
-    return $Call.ByID(4103565554);
+export function OpenLocal(termType: string): $CancellablePromise<$models.SessionInfo | null> {
+    return $Call.ByID(4103565554, termType);
 }
 
 export function Resize(sessionID: string, cols: number, rows: number): $CancellablePromise<void> {

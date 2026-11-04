@@ -1,4 +1,10 @@
 import { isWindows } from "./platform";
+import {
+  DEFAULT_HIGHLIGHT,
+  HIGHLIGHT_RULES,
+  type HighlightRuleId,
+  type HighlightSettings,
+} from "./highlight";
 import { DEFAULT_THEME, isThemeId, type ThemeId } from "./themes";
 
 const STORAGE_KEY = "conch.settings.v1";
@@ -152,6 +158,54 @@ export const MIN_FONT_SIZE = 10;
 export const MAX_FONT_SIZE = 20;
 export const DEFAULT_FONT_SIZE = 13;
 
+/**
+ * What a session announces as $TERM. The value is the TERM name itself, because
+ * that is what travels to the host: the server looks it up in its own terminfo
+ * and decides from it whether to emit 256-colour codes, cursor jumps or nothing
+ * but newlines. Ordered from richest to plainest, which is also how the picker
+ * reads: step down when a host does not know the entry above.
+ */
+export interface TerminalTypeChoice {
+  id: string;
+  label: string;
+  hint: string;
+}
+
+export const TERMINAL_TYPES: TerminalTypeChoice[] = [
+  {
+    id: "xterm-256color",
+    label: "xterm-256color",
+    hint: "256 colours, modern default",
+  },
+  {
+    id: "xterm",
+    label: "xterm",
+    hint: "16 colours, classic",
+  },
+  {
+    id: "linux",
+    label: "linux",
+    hint: "8 colours, console keys",
+  },
+  {
+    id: "ansi",
+    label: "ansi",
+    hint: "Colour, no layout control",
+  },
+  {
+    id: "vt220",
+    label: "vt220",
+    hint: "No colour, cursor control",
+  },
+  {
+    id: "vt100",
+    label: "vt100",
+    hint: "Oldest — routers and switches",
+  },
+];
+
+export const DEFAULT_TERMINAL_TYPE = TERMINAL_TYPES[0].id;
+
 /** App-wide preferences. The stored object is kept open so new keys can join. */
 export interface AppSettings {
   theme: ThemeId;
@@ -159,6 +213,11 @@ export interface AppSettings {
   fontSize: number;
   cursorStyle: CursorStyle;
   cursorBlink: boolean;
+  highlight: HighlightSettings;
+  /** TERM announced to every new session; see TERMINAL_TYPES. */
+  terminalType: string;
+  /** Right-click in a terminal pastes the clipboard instead of doing nothing. */
+  rightClickPaste: boolean;
 }
 
 type StoredSettings = Record<string, unknown>;
@@ -188,8 +247,39 @@ function isCursorStyle(value: unknown): value is CursorStyle {
   return CURSOR_STYLES.some((style) => style.id === value);
 }
 
+/** Only the listed types are offered, so anything else in storage falls back. */
+export function isTerminalType(value: unknown): value is string {
+  return TERMINAL_TYPES.some((type) => type.id === value);
+}
+
 export function clampFontSize(value: number): number {
   return Math.min(MAX_FONT_SIZE, Math.max(MIN_FONT_SIZE, Math.round(value)));
+}
+
+/**
+ * A stored colour, or the default for that rule. Only `#rrggbb` is accepted: a
+ * half-written or named colour would reach the ANSI encoder and paint black.
+ */
+function isHexColor(value: unknown): value is string {
+  return typeof value === "string" && /^#[0-9a-fA-F]{6}$/.test(value);
+}
+
+function normalizeHighlight(value: unknown): HighlightSettings {
+  const stored = value && typeof value === "object" ? (value as StoredSettings) : {};
+  const colors = stored.colors && typeof stored.colors === "object"
+    ? (stored.colors as StoredSettings)
+    : {};
+  const next: Record<HighlightRuleId, string> = { ...DEFAULT_HIGHLIGHT.colors };
+  for (const rule of HIGHLIGHT_RULES) {
+    const storedColor = colors[rule.id];
+    if (isHexColor(storedColor)) {
+      next[rule.id] = storedColor.toLowerCase();
+    }
+  }
+  return {
+    enabled: typeof stored.enabled === "boolean" ? stored.enabled : DEFAULT_HIGHLIGHT.enabled,
+    colors: next,
+  };
 }
 
 export function loadSettings(): AppSettings {
@@ -203,6 +293,12 @@ export function loadSettings(): AppSettings {
         : DEFAULT_FONT_SIZE,
     cursorStyle: isCursorStyle(stored.cursorStyle) ? stored.cursorStyle : "bar",
     cursorBlink: typeof stored.cursorBlink === "boolean" ? stored.cursorBlink : true,
+    highlight: normalizeHighlight(stored.highlight),
+    terminalType: isTerminalType(stored.terminalType)
+      ? stored.terminalType
+      : DEFAULT_TERMINAL_TYPE,
+    rightClickPaste:
+      typeof stored.rightClickPaste === "boolean" ? stored.rightClickPaste : false,
   };
 }
 

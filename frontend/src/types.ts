@@ -22,6 +22,12 @@ export interface ConnectRequest {
   Cols: number;
   Rows: number;
   TrustNewHostKey: boolean;
+  /**
+   * $TERM announced in the pty request. Builders leave it empty; it is filled
+   * from the global emulation setting when the connection is made, so a
+   * reconnect follows a later change. Empty means the backend's modern default.
+   */
+  Term: string;
   RememberPassword: boolean;
   /**
    * Frontend-only: keep the key passphrase with the saved host, the same way a

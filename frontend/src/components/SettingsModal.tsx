@@ -5,13 +5,21 @@ import {
   FONT_FAMILIES,
   MAX_FONT_SIZE,
   MIN_FONT_SIZE,
+  TERMINAL_TYPES,
   clampFontSize,
   fontStackFor,
   type AppSettings,
   type FontFamilyId,
 } from "../lib/settings";
-import { modKey, osName, promptSample } from "../lib/platform";
+import {
+  COLOR_PRESETS,
+  DEFAULT_HIGHLIGHT_COLORS,
+  HIGHLIGHT_RULES,
+  type HighlightRuleId,
+} from "../lib/highlight";
+import { modKey, promptSample } from "../lib/platform";
 import { AppSelect, type AppSelectOption } from "./AppSelect";
+import { ColorPicker } from "./ColorPicker";
 import { ThemeGrid } from "./ThemePicker";
 
 // Built once: the list comes from a module constant, and a stable identity keeps
@@ -24,16 +32,75 @@ const FONT_OPTIONS: AppSelectOption<FontFamilyId>[] = FONT_FAMILIES.map((font) =
   font: font.stack,
 }));
 
+// Ids are TERM names, and TERM names are what the rows show: quoting a marketing
+// label here would hide the one string the user may need to type by hand.
+const TERMINAL_OPTIONS: AppSelectOption<string>[] = TERMINAL_TYPES.map((type) => ({
+  value: type.id,
+  label: type.label,
+  hint: type.hint,
+}));
+
 interface SettingsModalProps {
   settings: AppSettings;
   onChange: (patch: Partial<AppSettings>) => void;
   onClose: () => void;
 }
 
-type SettingsSection = "appearance" | "terminal" | "about";
+type SettingsSection = "appearance" | "terminal" | "highlight" | "about";
+
+/**
+ * "plain" is not a rule, it is the text between the coloured words — the same mix
+ * a real log line is made of, which is what makes a preview believable.
+ */
+type PreviewPiece = { rule: HighlightRuleId | "plain"; text: string };
+
+/** The words the preview shows, in the order of HIGHLIGHT_RULES. */
+const PREVIEW_ROWS: PreviewPiece[][] = [
+  [
+    { rule: "error", text: "ERROR" },
+    { rule: "plain", text: "  connect to host " },
+    { rule: "network", text: "192.168.1.10" },
+    { rule: "plain", text: " port 22: " },
+    { rule: "error", text: "Connection refused" },
+  ],
+  [
+    { rule: "warning", text: "warning" },
+    { rule: "plain", text: ": " },
+    { rule: "warning", text: "deprecated" },
+    { rule: "plain", text: " flag --purge" },
+  ],
+  [
+    { rule: "ok", text: "OK" },
+    { rule: "plain", text: "  nginx is " },
+    { rule: "ok", text: "active" },
+    { rule: "plain", text: " (running)" },
+  ],
+  [
+    { rule: "info", text: "INFO" },
+    { rule: "plain", text: "  listening on " },
+    { rule: "network", text: "0.0.0.0:8080" },
+  ],
+  [
+    { rule: "debug", text: "DEBUG" },
+    { rule: "plain", text: " " },
+    { rule: "debug", text: "trace" },
+    { rule: "plain", text: " arp from " },
+    { rule: "network", text: "00:1a:2b:3c:4d:5e" },
+  ],
+];
 
 export function SettingsModal({ settings, onChange, onClose }: SettingsModalProps) {
   const [section, setSection] = useState<SettingsSection>("appearance");
+
+  const highlight = settings.highlight;
+
+  const setHighlightEnabled = (enabled: boolean) => {
+    onChange({ highlight: { ...highlight, enabled } });
+  };
+
+  const setHighlightColor = (rule: HighlightRuleId, hex: string) => {
+    onChange({ highlight: { ...highlight, colors: { ...highlight.colors, [rule]: hex } } });
+  };
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -110,6 +177,20 @@ export function SettingsModal({ settings, onChange, onClose }: SettingsModalProp
                 <line x1="12.5" y1="14.4" x2="16.5" y2="14.4" />
               </svg>
               Terminal
+            </button>
+            <button
+              type="button"
+              className={section === "highlight" ? "is-active" : undefined}
+              aria-current={section === "highlight" ? "page" : undefined}
+              onClick={() => setSection("highlight")}
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M7.4 15.6 10.6 7h2.8l3.2 8.6" />
+                <line x1="8.8" y1="12.6" x2="15.2" y2="12.6" />
+                <line x1="4.6" y1="19.4" x2="11.4" y2="19.4" strokeWidth="2.6" />
+                <line x1="14" y1="19.4" x2="19.4" y2="19.4" strokeWidth="2.6" opacity="0.55" />
+              </svg>
+              Highlighting
             </button>
             <button
               type="button"
@@ -232,6 +313,34 @@ export function SettingsModal({ settings, onChange, onClose }: SettingsModalProp
                 </div>
 
                 <div className="settings-block">
+                  <span className="settings-block-title">Emulation</span>
+                  <div className="settings-row">
+                    <div className="settings-row-label">
+                      <span>Terminal type</span>
+                      <small>
+                        Announced as $TERM when a session opens
+                      </small>
+                    </div>
+                    <AppSelect
+                      className="settings-select"
+                      label="Terminal emulation type"
+                      head="Terminal type"
+                      value={settings.terminalType}
+                      options={TERMINAL_OPTIONS}
+                      onChange={(terminalType) => onChange({ terminalType })}
+                    />
+                  </div>
+                  <p className="settings-note">
+                    The host looks this name up in its own terminfo to decide how
+                    much it may draw — step down when a server answers colour or
+                    cursor codes with stray characters. Old switches and routers
+                    usually know vt100 and nothing newer, and a simpler type
+                    cannot add colour a host does not offer. Sessions already open
+                    keep the type they were given.
+                  </p>
+                </div>
+
+                <div className="settings-block">
                   <span className="settings-block-title">Cursor</span>
                   <div className="cursor-options" role="radiogroup" aria-label="Cursor style">
                     {CURSOR_STYLES.map((style) => {
@@ -271,6 +380,123 @@ export function SettingsModal({ settings, onChange, onClose }: SettingsModalProp
                     </span>
                   </label>
                 </div>
+
+                <div className="settings-block">
+                  <span className="settings-block-title">Mouse</span>
+                  <label className="settings-switch">
+                    <span className="settings-switch-copy">
+                      <strong>Right-click to paste</strong>
+                      <small>Selecting text copies it, right-click pastes it</small>
+                    </span>
+                    <input
+                      type="checkbox"
+                      checked={settings.rightClickPaste}
+                      onChange={(event) =>
+                        onChange({ rightClickPaste: event.target.checked })
+                      }
+                    />
+                    <span className="switch-track" aria-hidden="true">
+                      <span />
+                    </span>
+                  </label>
+                </div>
+              </>
+            )}
+
+            {section === "highlight" && (
+              <>
+                <h3>Highlighting</h3>
+                <p className="settings-copy">
+                  Colour the words worth scanning for in every terminal — SSH
+                  sessions, splits and local shells alike. Anything that draws its
+                  own screen, like vim or htop, is left exactly as it is.
+                </p>
+
+                <label className="settings-switch">
+                  <span className="settings-switch-copy">
+                    <strong>Keyword highlighting</strong>
+                    <small>New output is coloured as it arrives</small>
+                  </span>
+                  <input
+                    type="checkbox"
+                    checked={highlight.enabled}
+                    onChange={(event) => setHighlightEnabled(event.target.checked)}
+                  />
+                  <span className="switch-track" aria-hidden="true">
+                    <span />
+                  </span>
+                </label>
+
+                <div className="settings-form highlight-rules">
+                  {HIGHLIGHT_RULES.map((rule) => (
+                    <div
+                      className={highlight.enabled ? "highlight-row" : "highlight-row is-off"}
+                      key={rule.id}
+                    >
+                      <div className="settings-row-label">
+                        <span>{rule.label}</span>
+                        <small>{rule.hint}</small>
+                      </div>
+                      <span
+                        className="highlight-sample"
+                        style={{ color: highlight.colors[rule.id] }}
+                      >
+                        {rule.sample}
+                      </span>
+                      <ColorPicker
+                        label={`${rule.label} colour`}
+                        head={rule.label}
+                        value={highlight.colors[rule.id]}
+                        fallback={DEFAULT_HIGHLIGHT_COLORS[rule.id]}
+                        presets={COLOR_PRESETS}
+                        onChange={(hex) => setHighlightColor(rule.id, hex)}
+                      />
+                    </div>
+                  ))}
+
+                  <button
+                    type="button"
+                    className="highlight-reset"
+                    onClick={() =>
+                      onChange({ highlight: { ...highlight, colors: { ...DEFAULT_HIGHLIGHT_COLORS } } })
+                    }
+                  >
+                    Restore default colours
+                  </button>
+                </div>
+
+                <div
+                  className={
+                    highlight.enabled ? "highlight-preview" : "highlight-preview is-off"
+                  }
+                  style={{
+                    fontFamily: fontStackFor(settings.fontFamily),
+                    fontSize: `${Math.min(settings.fontSize, 13)}px`,
+                  }}
+                  aria-hidden="true"
+                >
+                  {PREVIEW_ROWS.map((row) => (
+                    <span className="highlight-preview-line" key={row[0].text}>
+                      {row.map((piece) => (
+                        <span
+                          key={piece.text}
+                          style={
+                            piece.rule === "plain"
+                              ? undefined
+                              : { color: highlight.colors[piece.rule], fontWeight: 700 }
+                          }
+                        >
+                          {piece.text}
+                        </span>
+                      ))}
+                    </span>
+                  ))}
+                </div>
+
+                <p className="settings-note">
+                  Colours reach the text as it arrives, so a change applies to new
+                  output rather than to the scrollback already drawn.
+                </p>
               </>
             )}
 
@@ -282,10 +508,9 @@ export function SettingsModal({ settings, onChange, onClose }: SettingsModalProp
                   </svg>
                 </span>
                 <h3>Conch</h3>
-                <p className="settings-version">Version 0.1.0 · Open source</p>
+                <p className="settings-version">Version 0.2.0</p>
                 <p className="settings-copy">
-                  A native {osName} workspace for SSH and local shells, built with
-                  Wails, React, and xterm.js.
+                  A native SSH and local terminal for macOS and Windows.
                 </p>
                 <div className="settings-keys">
                   <div>
@@ -299,15 +524,15 @@ export function SettingsModal({ settings, onChange, onClose }: SettingsModalProp
                 </div>
               </div>
             )}
-
-            <footer className="settings-foot">
-              <span>Changes apply instantly.</span>
-              <button type="button" className="primary small" onClick={onClose}>
-                Done
-              </button>
-            </footer>
           </section>
         </div>
+
+        <footer className="settings-foot">
+          <span>Changes apply instantly.</span>
+          <button type="button" className="primary small" onClick={onClose}>
+            Done
+          </button>
+        </footer>
       </div>
     </div>,
     document.body,

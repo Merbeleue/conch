@@ -39,7 +39,11 @@ export function ConnectForm({
   const [label, setLabel] = useState(initial?.label ?? "");
   const [group, setGroup] = useState(initial?.group ?? "");
   const [host, setHost] = useState(initial?.host ?? "");
-  const [port, setPort] = useState(String(initial?.port ?? 22));
+  // 22 is shown as a grey hint rather than typed text, so an empty field and a
+  // saved default look the same — and leaving it blank still connects to 22.
+  const [port, setPort] = useState(
+    initial?.port && initial.port !== 22 ? String(initial.port) : "",
+  );
   const [username, setUsername] = useState(initial?.user ?? "");
   const [theme, setTheme] = useState<ThemeId | "">(initial?.theme ?? "");
   // Agent auth is no longer offered; legacy agent hosts fall back to a key.
@@ -104,6 +108,8 @@ export function ConnectForm({
       Cols: 120,
       Rows: 32,
       TrustNewHostKey: false,
+      // Filled in from the emulation setting at connect time.
+      Term: "",
       RememberPassword: authMethod === "password" && savePassword,
       RememberPassphrase: authMethod === "key" && savePassphrase,
       Label: label.trim(),
@@ -189,6 +195,7 @@ export function ConnectForm({
               <input
                 value={port}
                 onChange={(event) => setPort(event.target.value)}
+                placeholder="22"
                 inputMode="numeric"
                 autoComplete="off"
                 spellCheck={false}

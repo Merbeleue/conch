@@ -519,9 +519,7 @@ export function Sidebar({
 
       <div className="sidebar-foot">
         <span className="foot-dot" aria-hidden="true" />
-        <span>v0.1.0</span>
-        <span className="foot-sep">/</span>
-        <span>Open source</span>
+        <span>v0.2.0</span>
         <button
           type="button"
           className="foot-settings"
@@ -529,9 +527,13 @@ export function Sidebar({
           aria-label="Open settings"
           onClick={onSettings}
         >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <circle cx="12" cy="12" r="3.1" />
-            <path d="M19.4 13.7a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.9 2.9l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5v.2a2 2 0 0 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.9-2.9l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H4a2 2 0 0 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.9-2.9l.1.1a1.7 1.7 0 0 0 1.9.3h.1a1.7 1.7 0 0 0 1-1.5V4a2 2 0 0 1 4 0v.1a1.7 1.7 0 0 0 1 1.5h.1a1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.9 2.9l-.1.1a1.7 1.7 0 0 0-.3 1.9v.1a1.7 1.7 0 0 0 1.5 1h.2a2 2 0 0 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z" />
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" aria-hidden="true">
+            <line x1="4" y1="8.5" x2="7" y2="8.5" />
+            <circle cx="9.6" cy="8.5" r="2.4" />
+            <line x1="12.2" y1="8.5" x2="20" y2="8.5" />
+            <line x1="4" y1="15.5" x2="13.4" y2="15.5" />
+            <circle cx="16" cy="15.5" r="2.4" />
+            <line x1="18.6" y1="15.5" x2="20" y2="15.5" />
           </svg>
         </button>
       </div>

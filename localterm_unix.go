@@ -14,12 +14,12 @@ import (
 )
 
 // startPlatformShell opens a real PTY and runs the shell attached to it.
-func startPlatformShell(argv []string, dir string, cols int, rows int) (localTerminal, error) {
+func startPlatformShell(argv []string, dir string, cols int, rows int, termType string) (localTerminal, error) {
 	if len(argv) == 0 {
 		return nil, errors.New("no local shell to start")
 	}
 	cmd := exec.Command(argv[0], argv[1:]...)
-	cmd.Env = append(os.Environ(), "TERM=xterm-256color")
+	cmd.Env = envWithTerm(termType)
 	if dir != "" {
 		cmd.Dir = dir
 	}

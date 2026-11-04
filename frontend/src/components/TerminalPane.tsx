@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { Clipboard } from "@wailsio/runtime";
 import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import { WebglAddon } from "@xterm/addon-webgl";
@@ -6,6 +7,8 @@ import "@xterm/xterm/css/xterm.css";
 import { SSHService } from "../../bindings/conch";
 import { themeFor, type ThemeId } from "../lib/themes";
 import { fontStackFor, type CursorStyle, type FontFamilyId } from "../lib/settings";
+import { isWindows } from "../lib/platform";
+import { dropPainter, painterFor } from "../lib/highlight";
 import { inputTargets } from "../lib/inputBroadcast";
 import { attachSink, detachSink } from "../lib/sessionStream";
 import type { ExitInfo, SessionInfo, TerminalHandle } from "../types";
@@ -16,6 +19,7 @@ export interface TerminalPrefs {
   fontSize: number;
   cursorStyle: CursorStyle;
   cursorBlink: boolean;
+  rightClickPaste: boolean;
 }
 
 interface TerminalPaneProps {
@@ -68,6 +72,9 @@ function poolContainer(): HTMLDivElement {
 
 function destroyTerminal(sessionID: string, term: Terminal): void {
   detachSink(sessionID);
+  // The painter outlives a pane move but not the session: its write closure owns
+  // the reference to this terminal.
+  dropPainter(sessionID);
   sentSizes.delete(sessionID);
   const element = term.element;
   if (element?.parentElement) {
@@ -149,6 +156,11 @@ export function TerminalPane({
         letterSpacing: 0.2,
         scrollback: 10000,
         theme: themeFor(themeRef.current).terminal,
+        // xterm defaults this to true on macOS but false on Windows, which makes a
+        // right-click select the word under the pointer and destroy the text just
+        // marked. While right-click paste is on, right click must not touch the
+        // selection; while it is off, each platform keeps its own default.
+        rightClickSelectsWord: !isWindows && !initial.rightClickPaste,
       });
       fit = new FitAddon();
       term.loadAddon(fit);
@@ -171,6 +183,7 @@ export function TerminalPane({
     term.options.fontSize = latest.fontSize;
     term.options.cursorStyle = latest.cursorStyle;
     term.options.cursorBlink = latest.cursorBlink;
+    term.options.rightClickSelectsWord = !isWindows && !latest.rightClickPaste;
     termRef.current = term;
     fitRef.current = fit;
 
@@ -212,7 +225,11 @@ export function TerminalPane({
       document.fonts?.ready.then(() => fitNow(true)).catch(() => undefined);
     }
 
-    attachSink(session.ID, (bytes) => term.write(bytes));
+    // Output goes through the keyword painter rather than straight into xterm: it
+    // holds a line until that line ends, so a word split across two packets is
+    // still recognised, and it is what paints the colours the user chose.
+    const painter = painterFor(session.ID, (bytes) => term.write(bytes));
+    attachSink(session.ID, (bytes) => painter.feed(bytes));
     registerActions(session.ID, {
       clear: () => {
         term.clear();
@@ -228,6 +245,56 @@ export function TerminalPane({
         SSHService.Write(id, data).catch(() => undefined);
       }
     });
+
+    // Opt-in copy-on-select plus right-click paste. Selecting fills the
+    // clipboard, so the usual idiom "select, then right-click to paste" works
+    // without a separate copy step. Writes are debounced: a drag fires the
+    // event once per cell, and each write is an IPC round-trip.
+    let copyTimer = 0;
+    const offSelection = term.onSelectionChange(() => {
+      if (!prefsRef.current.rightClickPaste) {
+        return;
+      }
+      const selection = term.getSelection();
+      if (!selection) {
+        return;
+      }
+      window.clearTimeout(copyTimer);
+      copyTimer = window.setTimeout(() => {
+        copyTimer = 0;
+        Clipboard.SetText(selection).catch(() => undefined);
+      }, 120);
+    });
+
+    // The clipboard is read through Wails rather than navigator.clipboard,
+    // which a desktop WebView may refuse outside a trusted document. A live
+    // selection is pasted directly: it is exactly what the user marked, and it
+    // avoids racing the debounced clipboard write. xterm's paste() keeps
+    // bracketed-paste mode and multi-line guards.
+    const onContextMenu = (event: MouseEvent) => {
+      if (!prefsRef.current.rightClickPaste) {
+        return;
+      }
+      if (event.target instanceof HTMLElement && event.target.closest(".exit-layer")) {
+        return;
+      }
+      event.preventDefault();
+      const selection = term.getSelection();
+      if (selection) {
+        term.paste(selection);
+        term.focus();
+        return;
+      }
+      Clipboard.Text()
+        .then((text) => {
+          if (text) {
+            term.paste(text);
+          }
+          term.focus();
+        })
+        .catch(() => undefined);
+    };
+    container.addEventListener("contextmenu", onContextMenu);
 
     // A resize is expensive on the far side: SSH re-wraps the screen and a local
     // ConPTY makes the shell repaint all of it. So the backend only ever hears
@@ -274,7 +341,13 @@ export function TerminalPane({
     return () => {
       observer.disconnect();
       offData.dispose();
+      offSelection.dispose();
       offResize.dispose();
+      container.removeEventListener("contextmenu", onContextMenu);
+      if (copyTimer !== 0) {
+        window.clearTimeout(copyTimer);
+        copyTimer = 0;
+      }
       if (fitFrame !== 0) {
         cancelAnimationFrame(fitFrame);
         fitFrame = 0;
@@ -350,6 +423,9 @@ export function TerminalPane({
     term.options.fontSize = fontSize;
     term.options.cursorStyle = cursorStyle;
     term.options.cursorBlink = cursorBlink;
+    // Turning the setting on must stop xterm from grabbing a word on right
+    // click; turning it off restores the platform's own default.
+    term.options.rightClickSelectsWord = !isWindows && !prefs.rightClickPaste;
     const frame = requestAnimationFrame(() => {
       try {
         fitRef.current?.fit();
@@ -358,7 +434,7 @@ export function TerminalPane({
       }
     });
     return () => cancelAnimationFrame(frame);
-  }, [fontFamily, fontSize, cursorStyle, cursorBlink]);
+  }, [fontFamily, fontSize, cursorStyle, cursorBlink, prefs.rightClickPaste]);
 
   return (
     <section className={exit ? "term-pane is-ended" : "term-pane"}>

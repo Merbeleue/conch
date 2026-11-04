@@ -31,6 +31,24 @@ var (
 	knownHostsMu        sync.Mutex
 )
 
+// defaultTermType is what every terminal declares unless the user picks a
+// simpler emulation: 256 colours and the full xterm escape vocabulary.
+const defaultTermType = "xterm-256color"
+
+// normalizeTermType turns whatever the settings store held into a usable TERM
+// value. The name travels to the remote host verbatim, so it is only trimmed —
+// hosts with their own terminfo entry should not need a Conch update to use it.
+func normalizeTermType(term string) string {
+	term = strings.TrimSpace(term)
+	if term == "" {
+		return defaultTermType
+	}
+	if len(term) > 64 {
+		return defaultTermType
+	}
+	return term
+}
+
 type ConnectRequest struct {
 	// RequestID lets the UI cancel an in-flight connection attempt.
 	RequestID       string
@@ -44,6 +62,9 @@ type ConnectRequest struct {
 	Cols            int
 	Rows            int
 	TrustNewHostKey bool
+	// Term is announced as $TERM in the pty request. Empty means the modern
+	// default; a simpler value is for hosts whose terminfo has no xterm entry.
+	Term string
 }
 
 type SessionInfo struct {
@@ -256,7 +277,7 @@ func (s *SSHService) Connect(req ConnectRequest) (*SessionInfo, error) {
 		ssh.TTY_OP_ISPEED: 14400,
 		ssh.TTY_OP_OSPEED: 14400,
 	}
-	if err := session.RequestPty("xterm-256color", rows, cols, modes); err != nil {
+	if err := session.RequestPty(normalizeTermType(req.Term), rows, cols, modes); err != nil {
 		_ = session.Close()
 		_ = client.Close()
 		cleanup()
@@ -424,13 +445,15 @@ func (p *pendingConnect) abort() {
 
 // OpenLocal starts the user's login shell on a local terminal — a PTY on
 // macOS, a ConPTY on Windows. It shares the SSH session plumbing so the
-// frontend treats both kinds of terminal identically.
-func (s *SSHService) OpenLocal() (*SessionInfo, error) {
+// frontend treats both kinds of terminal identically. termType becomes the
+// shell's TERM, so `tput colors`, prompts and ls colours match what the user
+// declared for their remote sessions.
+func (s *SSHService) OpenLocal(termType string) (*SessionInfo, error) {
 	dir := ""
 	if home, err := os.UserHomeDir(); err == nil {
 		dir = home
 	}
-	term, err := startLocalShell(localShellArgv(), dir, 120, 32)
+	term, err := startLocalShell(localShellArgv(), dir, 120, 32, normalizeTermType(termType))
 	if err != nil {
 		return nil, err
 	}

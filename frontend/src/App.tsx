@@ -21,6 +21,7 @@ import {
   saveHost,
 } from "./lib/hosts";
 import { setInputBroadcast } from "./lib/inputBroadcast";
+import { setHighlightSettings } from "./lib/highlight";
 import { loadSettings, updateSettings, type AppSettings } from "./lib/settings";
 import { startOutputStream } from "./lib/sessionStream";
 import {
@@ -127,8 +128,15 @@ export default function App() {
       fontSize: settings.fontSize,
       cursorStyle: settings.cursorStyle,
       cursorBlink: settings.cursorBlink,
+      rightClickPaste: settings.rightClickPaste,
     }),
-    [settings.fontFamily, settings.fontSize, settings.cursorStyle, settings.cursorBlink],
+    [
+      settings.fontFamily,
+      settings.fontSize,
+      settings.cursorStyle,
+      settings.cursorBlink,
+      settings.rightClickPaste,
+    ],
   );
 
   const liveSessionIds = useMemo(
@@ -204,6 +212,13 @@ export default function App() {
   useEffect(() => {
     applyTheme(windowTheme);
   }, [windowTheme]);
+
+  // Keyword colours live in the stream module so the byte path can read them
+  // without every pane being threaded through it. Pushing them here is what makes
+  // a picker change land on the running sessions immediately.
+  useEffect(() => {
+    setHighlightSettings(settings.highlight);
+  }, [settings.highlight]);
 
   // Broadcast only makes sense with more than one live session; closing back
   // down to a single pane turns it off so typing never feels surprising.
@@ -420,8 +435,14 @@ export default function App() {
 
       const requestId = newRequestID();
       // Keep the caller's trust decision: the retry after the trust dialog
-      // sets TrustNewHostKey so the key can actually be saved.
-      const outgoing: ConnectRequest = { ...request, RequestID: requestId };
+      // sets TrustNewHostKey so the key can actually be saved. The emulation
+      // type is the one chosen now, so a reconnect picks up a changed setting
+      // instead of the value the tab was first opened with.
+      const outgoing: ConnectRequest = {
+        ...request,
+        RequestID: requestId,
+        Term: settings.terminalType,
+      };
       const visualToken = startConnectVisual({
         kind: "ssh",
         label: (options.label ?? request.Label).trim() || request.Host,
@@ -506,7 +527,7 @@ export default function App() {
         }
       }
     },
-    [startConnectVisual, finishConnectVisual, abortConnectVisual],
+    [startConnectVisual, finishConnectVisual, abortConnectVisual, settings.terminalType],
   );
 
   const openLocalTab = useCallback(
@@ -528,7 +549,7 @@ export default function App() {
       activeConnect.current = { requestId, visualToken };
 
       try {
-        const info = await SSHService.OpenLocal();
+        const info = await SSHService.OpenLocal(settings.terminalType);
         if (cancelledConnects.current.has(requestId)) {
           if (info) {
             void SSHService.Disconnect(info.ID).catch(() => undefined);
@@ -580,7 +601,7 @@ export default function App() {
         }
       }
     },
-    [startConnectVisual, finishConnectVisual, abortConnectVisual],
+    [startConnectVisual, finishConnectVisual, abortConnectVisual, settings.terminalType],
   );
 
   /** Adds a finished session to a new tab, an existing split, or a replacement pane. */
@@ -1264,8 +1285,26 @@ export default function App() {
     });
   }, []);
 
-  // The SFTP button toggles the file manager inside the current tab, so the tab
-  // strip stays on screen and one keystroke gets the terminal back.
+  // Clicking the tab whose file manager is showing returns to that tab's
+  // terminal: the tab strip is the natural way back, so the SFTP button is
+  // only the entry point. Clicking another tab switches as usual.
+  const handleSelectWorkspace = useCallback(
+    (id: string) => {
+      if (id === activeWorkspaceIdRef.current && sftpViews[id]) {
+        closeSftpFor(id);
+        const paneId = activeWorkspace?.activePaneId;
+        if (paneId) {
+          focusSessionSoon(paneId);
+        }
+        return;
+      }
+      selectWorkspace(id);
+    },
+    [activeWorkspace, closeSftpFor, focusSessionSoon, selectWorkspace, sftpViews],
+  );
+
+  // The SFTP button is the entry point: it opens the file manager inside the
+  // current tab and can also close it again. The tab strip is the other way back.
   const toggleSftp = useCallback(() => {
     const workspaceId = activeWorkspace?.id ?? null;
     const session = activeSession;
@@ -1392,7 +1431,7 @@ export default function App() {
               draggingSessionId ? workspaceBySession.get(draggingSessionId) ?? null : null
             }
             onToggleSidebar={() => setSidebarHidden((hidden) => !hidden)}
-            onSelect={selectWorkspace}
+            onSelect={handleSelectWorkspace}
             onClose={closeWorkspace}
             onNew={handleNew}
             onClear={handleClear}
@@ -1686,6 +1725,8 @@ function savedHostRequest(host: SavedHost): ConnectRequest {
     Cols: 120,
     Rows: 32,
     TrustNewHostKey: false,
+    // Filled in from the emulation setting at connect time.
+    Term: "",
     RememberPassword: hasPassword,
     RememberPassphrase: hasPassphrase,
     Label: host.label,

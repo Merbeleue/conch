@@ -16,6 +16,12 @@ export interface ConnectRequest {
     "Cols": number;
     "Rows": number;
     "TrustNewHostKey": boolean;
+
+    /**
+     * Term is announced as $TERM in the pty request. Empty means the modern
+     * default; a simpler value is for hosts whose terminfo has no xterm entry.
+     */
+    "Term": string;
 }
 
 /**

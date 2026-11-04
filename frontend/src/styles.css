@@ -690,10 +690,6 @@ html[data-os="windows"] .sidebar {
   box-shadow: 0 0 8px rgba(var(--ok-rgb), 0.6);
 }
 
-.foot-sep {
-  opacity: 0.4;
-}
-
 .foot-settings {
   --wails-draggable: no-drag;
   width: 26px;
@@ -716,13 +712,8 @@ html[data-os="windows"] .sidebar {
 }
 
 .foot-settings svg {
-  width: 14px;
-  height: 14px;
-  transition: transform 0.4s cubic-bezier(0.22, 0.61, 0.36, 1);
-}
-
-.foot-settings:hover svg {
-  transform: rotate(35deg);
+  width: 15px;
+  height: 15px;
 }
 
 /* ---------- Main ---------- */
@@ -4050,8 +4041,9 @@ body.is-resizing-row * {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-top: auto;
-  padding-top: 20px;
+  flex-shrink: 0;
+  padding: 12px 26px;
+  border-top: 1px solid var(--border);
   color: var(--faint);
   font-size: 10.5px;
 }
@@ -4580,6 +4572,241 @@ body.is-resizing-row * {
   box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.18);
 }
 
+/* ---------- Keyword highlighting ---------- */
+
+.highlight-rules {
+  margin-top: 4px;
+}
+
+.highlight-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+  transition: opacity 0.18s ease;
+}
+
+/* The switch is off, so the rows are shown as the inventory they are: still
+   readable, but clearly not in force. */
+.highlight-row.is-off {
+  opacity: 0.42;
+}
+
+.highlight-sample {
+  flex: 0 0 auto;
+  min-width: 96px;
+  padding: 3px 9px;
+  border-radius: 6px;
+  background: rgba(var(--overlay-rgb), 0.05);
+  font-family: "SF Mono", Menlo, monospace;
+  font-size: 11px;
+  font-weight: 700;
+  text-align: center;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.highlight-reset {
+  margin-top: 12px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.highlight-reset:hover {
+  text-decoration: underline;
+}
+
+.highlight-preview {
+  margin-top: 16px;
+  padding: 10px 13px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--recess-soft);
+  color: var(--text);
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  transition: opacity 0.18s ease;
+}
+
+.highlight-preview.is-off {
+  opacity: 0.4;
+}
+
+.highlight-preview-line {
+  display: block;
+}
+
+.settings-note {
+  margin: 12px 0 0;
+  color: var(--faint);
+  font-size: 10.5px;
+  line-height: 1.5;
+}
+
+/* ---------- Shared colour picker (ColorPicker) ---------- */
+
+.color-swatch {
+  --wails-draggable: no-drag;
+  appearance: none;
+  -webkit-appearance: none;
+  flex: 0 0 auto;
+  width: 40px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  cursor: pointer;
+  box-shadow: inset 0 1px 0 rgba(var(--overlay-rgb), 0.25);
+  transition:
+    transform 0.14s ease,
+    box-shadow 0.14s ease,
+    border-color 0.14s ease;
+}
+
+.color-swatch:hover {
+  transform: translateY(-1px);
+  border-color: rgba(var(--overlay-rgb), 0.4);
+}
+
+.color-swatch.is-open,
+.color-swatch:focus-visible {
+  outline: none;
+  border-color: rgba(var(--accent-rgb), 0.6);
+  box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.16);
+}
+
+.color-panel {
+  --wails-draggable: no-drag;
+  position: fixed;
+  z-index: 150;
+  padding: 11px 12px 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: 12px;
+  background: linear-gradient(180deg, var(--menu-top), var(--menu-bottom));
+  box-shadow:
+    0 24px 60px rgba(var(--ink-rgb), var(--shadow-a3)),
+    inset 0 1px 0 rgba(var(--overlay-rgb), 0.06);
+  transform-origin: top left;
+  animation: app-select-menu-in 0.16s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+
+.color-panel.is-above {
+  transform-origin: bottom left;
+  animation-name: app-select-menu-in-above;
+}
+
+.color-panel-head {
+  margin-bottom: 9px;
+  color: var(--faint);
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.color-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 22px);
+  gap: 6px;
+  justify-content: space-between;
+}
+
+.color-dot {
+  --wails-draggable: no-drag;
+  appearance: none;
+  -webkit-appearance: none;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  cursor: pointer;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+
+.color-dot:hover {
+  transform: scale(1.08);
+}
+
+.color-dot.is-current {
+  border-color: var(--text);
+  box-shadow:
+    0 0 0 2px rgba(var(--ink-rgb), 0.35),
+    inset 0 1px 0 rgba(var(--overlay-rgb), 0.3);
+}
+
+.color-hex {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 11px;
+  padding-top: 11px;
+  border-top: 1px solid var(--border);
+}
+
+.color-hex-chip {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+}
+
+.color-hex-field {
+  flex: 1;
+  min-width: 0;
+  height: 26px;
+  padding: 0 8px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: rgba(var(--overlay-rgb), 0.04);
+  color: var(--text);
+  font-family: "SF Mono", Menlo, monospace;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: lowercase;
+}
+
+.color-hex-field:focus-visible {
+  outline: none;
+  border-color: rgba(var(--accent-rgb), 0.55);
+  background: rgba(var(--accent-rgb), 0.08);
+  box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.13);
+}
+
+.color-reset {
+  flex: 0 0 auto;
+  height: 26px;
+  padding: 0 9px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: rgba(var(--overlay-rgb), 0.04);
+  color: var(--muted);
+  font-size: 10.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: color 0.14s ease, border-color 0.14s ease, background 0.14s ease;
+}
+
+.color-reset:hover:not(:disabled) {
+  color: var(--text);
+  border-color: var(--border-strong);
+  background: rgba(var(--overlay-rgb), 0.08);
+}
+
+.color-reset:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
 /* ---------- Scrollbars ---------- */
 
 ::-webkit-scrollbar {
@@ -4677,7 +4904,7 @@ body.is-resizing-row * {
     display: none;
   }
 
-  /* Keep the gear reachable even when the rail hides the version line. */
+  /* Keep the settings control reachable even when the rail hides the version line. */
   .sidebar-foot {
     justify-content: center;
     padding: 10px 0 0;

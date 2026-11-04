@@ -51,7 +51,7 @@ Conch 是一个原生应用，给整天在几台服务器之间来回切换的�
 
 ### macOS
 
-**`Conch-0.1.0.dmg`**——通用二进制，Apple 芯片和 Intel 芯片都能用，要求 macOS 12 或更新。
+**`Conch-0.2.0.dmg`**——通用二进制，Apple 芯片和 Intel 芯片都能用，要求 macOS 12 或更新。
 把应用拖进「应用程序」后，第一次启动需要手动放行：目前构建只做了 ad-hoc 签名、还没有公证，
 Gatekeeper 会提示「Apple 无法验证 "conch"…」。先双击一次让它被拦下，再打开
 **系统设置 → 隐私与安全性**，在「已阻止 "conch" 以保护 Mac」那一行点 **仍要打开**。
@@ -60,19 +60,19 @@ Gatekeeper 会提示「Apple 无法验证 "conch"…」。先双击一次让它�
 习惯终端的话可以完全绕开 Gatekeeper——`curl` 不会给文件打隔离标记，装好就能直接双击打开：
 
 ```bash
-curl -fsSL https://github.com/Merbeleue/conch/releases/download/v0.1.0/Conch-0.1.0.tar.gz \
+curl -fsSL https://github.com/Merbeleue/conch/releases/download/v0.2.0/Conch-0.2.0.tar.gz \
   | tar -xz -C /Applications
 ```
 
 ### Windows
 
-**`Conch-0.1.0-windows-installer.exe`** 里面同时装了 amd64 和 arm64 两份程序，安装时自动选
+**`Conch-0.2.0-windows-installer.exe`** 里面同时装了 amd64 和 arm64 两份程序，安装时自动选
 对应机器的那一份，Intel/AMD 和 Windows-on-ARM 的电脑都能用。它按当前用户安装到
 `%LOCALAPPDATA%\Programs\Conch`，不弹管理员授权，并创建开始菜单和桌面快捷方式。构建没有
 代码签名，首次运行时 SmartScreen 会提示「Windows 已保护你的电脑」，点**更多信息 → 仍要运行**
 即可。如果这台机器还没有 Edge WebView2 运行时，安装程序会顺手帮你装上。
 
-**`Conch-0.1.0-windows-portable.zip`** 是免安装的另一种选择：解压后直接运行 `conch.exe`
+**`Conch-0.2.0-windows-portable.zip`** 是免安装的另一种选择：解压后直接运行 `conch.exe`
 （x64）或 `conch-arm64.exe`。要求 Windows 10 或更新。
 
 每个版本的改动记录在 [CHANGELOG.md](./CHANGELOG.md)。
@@ -124,6 +124,9 @@ wails3 task windows:build ARCH=amd64   # → bin/conch.exe
 - 八套主题——五深色（Conch、Tide、Grove、Nebula、Graphite）和三浅色（Dawn、Paper、Mist）——界面和终端调色板一起换；在设置（`⌘,`）里全局指定，或用可视化选择器按主机覆盖，预览所见即所得，该会话激活期间由它接管整个窗口
 - 全局终端字体：在 设置 → 终端 里从系统里真实存在的等宽字体中选——macOS 是 SF Mono、JetBrains Mono、Menlo、Monaco、系统等宽，Windows 是 Cascadia Mono、Cascadia Code、JetBrains Mono、Consolas、Courier New——字号 10–20px；选择框是应用自己画的，深色浅色都看得清；所有已打开的面板（含分屏）立即跟随，重排时保留回滚内容
 - 全局光标设置：块状、竖线、下划线，闪烁可开关，设置里有实时预览
+- 关键字高亮：错误、警告、成功、状态词、调试信息和 IPv4/IPv6/MAC 地址在输出到达时着色，每条规则的配色都能在 设置 → 高亮 里用应用自绘的取色器调整。颜色以 ANSI 写进数据流，复制出来仍是纯文本；vim、htop、less 这类自己画屏幕的程序原样放行
+- 终端类型（`$TERM`）：SSH 会话和本地 shell 都能选，从 xterm-256color 一直到 vt100，给 terminfo 不认识新版 xterm 的老主机用；改完重连生效，已打开的会话保持连接时的类型
+- 可选右键粘贴：选中文字即自动复制，右键直接粘贴选中的内容（没有选中时粘贴剪贴板），保留 xterm 的括号粘贴和多行保护；关闭时保持各平台原生的右键行为
 - 广播输入：标签栏的 Broadcast 按钮把当前聚焦面板的按键镜像到所有在线会话；在线会话不足两个或你点了「断开全部」时它会自动关闭，没有可广播对象时按钮置灰并说明原因
 - 标签栏那颗醒目的 SFTP 药丸按钮打开文件管理器：它是*当前标签内的子视图*——顶部主机标签一直在，终端在底下继续跑，按 `Esc` 或「终端」按钮立刻回到命令行，每个标签都记得自己刚才在看哪个目录。左右两栏，左边是本地文件系统（可以用一个跟随应用自身样式的动画来源选择器切到任意其他在线会话），右边是这台已连接的主机，两边都能直接编辑路径栏。选中文件/文件夹后用中间导轨按钮、双击或拖拽传输；文件夹递归传输，两个方向都支持，远端来源还能直接送到另一台主机。目标已存在同名文件时，确认框会列出冲突项并提供「覆盖」（替换该文件）或「跳过」（完全不动它）；文件夹和被跳过的名字则按 Finder 习惯加 `(1)`、`(2)` 后缀，而把文件复制到自己身上会被拒绝，而不是清空原文件。右键某一行可做文件操作：行内重命名、Linux 主机上的权限修改（八进制输入框 + 实时 `-rwxr-xr-x` 预览 + 属主/属组/其他三列勾选）、删除——本地项目确认后移进回收站（macOS 是废纸篓），远端项目是彻底删除，确认框会明说。传输中的浮层卡片显示实时百分比、已传/总字节、当前文件、取消按钮，以及成功/失败/取消的明确结论；完成的传输会自己消失。这一切都跟随当前主题，浅色主题也不例外
 - 跟随窗口大小的可调整 PTY

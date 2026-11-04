@@ -338,7 +338,7 @@ export function TabBar({
               <path d="m17.2 11 3 2.9-3 2.9" />
             </svg>
           </span>
-          <span className="sftp-trigger-text">{sftpActive ? "Files" : "SFTP"}</span>
+          <span className="sftp-trigger-text">SFTP</span>
         </button>
         <button
           type="button"

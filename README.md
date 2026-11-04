@@ -52,7 +52,7 @@ Everything comes from the [latest release](https://github.com/Merbeleue/conch/re
 
 ### macOS
 
-Grab **`Conch-0.1.0.dmg`** — a universal binary (Apple Silicon and Intel) for macOS 12 and
+Grab **`Conch-0.2.0.dmg`** — a universal binary (Apple Silicon and Intel) for macOS 12 and
 newer. Drag the app into Applications, then launch it once and approve it: builds are ad-hoc
 signed but not yet notarized, so Gatekeeper stops the first launch with *"Apple can't verify
 "conch"…"*. Double-click it once, then open **System Settings → Privacy & Security** and press
@@ -63,20 +63,20 @@ If you live in a terminal, skip Gatekeeper entirely — `curl` never sets the qu
 flag, so the app opens on a plain double-click:
 
 ```bash
-curl -fsSL https://github.com/Merbeleue/conch/releases/download/v0.1.0/Conch-0.1.0.tar.gz \
+curl -fsSL https://github.com/Merbeleue/conch/releases/download/v0.2.0/Conch-0.2.0.tar.gz \
   | tar -xz -C /Applications
 ```
 
 ### Windows
 
-**`Conch-0.1.0-windows-installer.exe`** carries both amd64 and arm64 builds and picks the
+**`Conch-0.2.0-windows-installer.exe`** carries both amd64 and arm64 builds and picks the
 right one at install time, so it works on Intel/AMD machines and on Windows-on-ARM PCs. It
 installs per-user into `%LOCALAPPDATA%\Programs\Conch` — no administrator prompt — and adds
 Start Menu and Desktop shortcuts. Builds are unsigned, so SmartScreen shows *"Windows saved
 your PC from an unknown app"* on the first run; press **More info → Run anyway**. If Edge
 WebView2 is not present yet, the installer fetches the runtime for you.
 
-There is no install step at all in **`Conch-0.1.0-windows-portable.zip`**: unpack it and run
+There is no install step at all in **`Conch-0.2.0-windows-portable.zip`**: unpack it and run
 `conch.exe` (x64) or `conch-arm64.exe`. Requires Windows 10 or newer.
 
 Release notes live in [CHANGELOG.md](./CHANGELOG.md).
@@ -130,6 +130,9 @@ localStorage on your own machine — see [Security notes](#security-notes).
 - Eight themes — five dark (Conch, Tide, Grove, Nebula, Graphite) and three daylight (Dawn, Paper, Mist) — that recolor the chrome and the terminal palette; set one globally in Settings (`⌘,`) or override it per host with a visual picker that previews each theme, where the override takes over the window while that session is active
 - Global terminal typography: pick from the fonts your system actually has — SF Mono, JetBrains Mono, Menlo, Monaco or System Mono on macOS, Cascadia Mono, Cascadia Code, JetBrains Mono, Consolas or Courier New on Windows — plus a size from 10–20px in Settings → Terminal; the picker is drawn by the app rather than the OS, so the list stays legible on the dark themes; every open pane follows instantly, splits included, and keeps its scrollback while it refits
 - Global cursor preferences: block, bar or underline with blinking on or off, shown in a live preview inside Settings
+- Keyword highlighting in every terminal: errors, warnings, successes, status words, debug chatter and IPv4/IPv6/MAC addresses are coloured as they arrive, with a colour per rule set in Settings → Highlighting through the app's own picker. Colours are written as ANSI into the stream, so copying still yields plain text, and full-screen programs such as vim, htop and less pass through untouched
+- Terminal emulation (`$TERM`) for SSH sessions and local shells: choose xterm-256color down to vt100 for hosts whose terminfo does not know a modern xterm, and reconnect to use the new value — open sessions keep the type they were given
+- Optional right-click paste: selecting text copies it automatically, and a right click pastes the selection (or the clipboard when nothing is selected) with xterm's bracketed-paste and multi-line safeguards intact; with the setting off, each platform keeps its native right-click behaviour
 - Broadcast input: the Broadcast button in the tab bar mirrors keystrokes from the focused pane to every open session, and turns itself off when fewer than two sessions are live or when you disconnect all; the button is disabled with an explanation when there is nothing to broadcast to
 - SFTP file manager from the accent SFTP pill in the tab bar: it opens as a sub-view inside the current tab — the host tabs stay on screen and the terminals keep running underneath, so `Esc` or the Terminal button drops you straight back to the live shell, and each tab remembers the folders you were looking at. Two panes, local filesystem on the left — switchable to any other live session from an animated source picker that follows the app's own styling — and the connected host on the right, each with an editable path bar. Copy selected files and folders with the rail buttons, a double-click, or drag and drop; folders move recursively, both directions work, and a remote source can send straight to another host. When a file already exists on the target, a confirmation dialog lists the clashes and offers Overwrite (replaces that file) or Skip existing (leaves it untouched and copies nothing for it); folders and skipped names get Finder-style `(1)`, `(2)` suffixes instead, and a copy onto itself is refused rather than truncating the original. Right-click a row for file operations: inline Rename, Permissions on Linux hosts (an octal field with a live `-rwxr-xr-x` preview and an owner/group/others grid), and Delete — local items go to the macOS Trash or the Windows Recycle Bin after confirmation, remote ones are removed for good with a dialog that says so. A floating card shows the live percentage, transferred and total bytes, the current file, a cancel button, and a clear success, failure or canceled summary; finished transfers dismiss themselves. Everything follows the active theme, including the daylight palettes
 - Resizable PTY that follows the window

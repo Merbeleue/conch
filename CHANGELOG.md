@@ -4,6 +4,42 @@ All notable changes to Conch are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [semantic versioning](https://semver.org/).
 
+## [0.2.0] - 2026-11-04
+
+Download from the [Releases page](https://github.com/Merbeleue/conch/releases/tag/v0.2.0).
+
+### Added
+
+- **Keyword highlighting** in every terminal, local and SSH alike: errors, warnings,
+  successes, status words, debug chatter and IPv4/IPv6/MAC addresses are coloured as
+  they arrive. Each rule has its own colour in Settings → Highlighting, set through an
+  app-drawn picker with presets and a hex field. Colours are injected as ANSI into the
+  output stream, so copied text stays plain, and output carrying escape sequences —
+  vim, htop, less — is passed through untouched.
+- **Terminal emulation (`$TERM`)** setting for SSH sessions and local shells, from
+  xterm-256color down to vt100, for hosts whose terminfo has no modern xterm entry.
+  New connections and reconnects use the current value; open sessions keep the type
+  they were given.
+- **Right-click paste** (opt-in, Settings → Terminal → Mouse): selecting text copies
+  it automatically, and a right click pastes the selection — or the clipboard when
+  nothing is selected — through xterm's bracketed-paste and multi-line safeguards.
+  With the setting off, each platform keeps its native right-click behaviour.
+
+### Changed
+
+- The SFTP manager now returns to the terminal when you click the active host tab,
+  instead of requiring the pill button; the tab-bar pill is always labelled SFTP.
+- The new-host form shows port 22 as a grey hint instead of typed text, and an empty
+  field still connects to 22.
+- The settings dialog pins its Done button to a footer that stays visible on long
+  pages, uses a redrawn sliders icon in the sidebar, and has a shorter About section.
+  The sidebar footer no longer carries the "Open source" label.
+
+### Fixed
+
+- Right-clicking a terminal no longer replaces the text you marked with the single
+  word under the pointer while right-click paste is enabled.
+
 ## [0.1.0] - 2026-11-03
 
 First public release, for **macOS and Windows**. The macOS binaries shipped on 2026-11-03
@@ -97,4 +133,5 @@ Download from the [Releases page](https://github.com/Merbeleue/conch/releases/ta
 - No port forwarding, no `~/.ssh/config` import, no session restore after relaunch,
   and xterm.js is not yet told it is on ConPTY, so Windows line-wrap reflow is guessed.
 
+[0.2.0]: https://github.com/Merbeleue/conch/releases/tag/v0.2.0
 [0.1.0]: https://github.com/Merbeleue/conch/releases/tag/v0.1.0
