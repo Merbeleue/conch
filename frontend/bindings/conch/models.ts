@@ -50,7 +50,7 @@ export interface SFTPConflictRequest {
 
 /**
  * SFTPDeleteRequest removes the named entries from one folder. Local entries go
- * to the macOS Trash, remote entries are deleted for real after the window has
+ * to the system Trash or Recycle Bin, remote entries are deleted for real after the window has
  * asked for confirmation.
  */
 export interface SFTPDeleteRequest {
@@ -97,7 +97,7 @@ export interface SFTPRenameRequest {
 }
 
 /**
- * SFTPSource identifies one side of the file manager: this Mac or a live SSH
+ * SFTPSource identifies one side of the file manager: the local machine or a live SSH
  * session. Labels come from the main window so renamed tabs keep their name.
  */
 export interface SFTPSource {

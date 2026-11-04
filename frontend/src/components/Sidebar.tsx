@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { createPortal } from "react-dom";
 import type { SavedHost } from "../types";
+import { modKey } from "../lib/platform";
 
 interface SidebarProps {
   hosts: SavedHost[];
@@ -443,7 +444,7 @@ export function Sidebar({
                 </svg>
               </button>
             ) : (
-              <kbd className="host-search-key">⌘F</kbd>
+              <kbd className="host-search-key">{modKey}F</kbd>
             )}
           </div>
         )}
@@ -524,7 +525,7 @@ export function Sidebar({
         <button
           type="button"
           className="foot-settings"
-          title="Settings (⌘,)"
+          title={`Settings (${modKey},)`}
           aria-label="Open settings"
           onClick={onSettings}
         >

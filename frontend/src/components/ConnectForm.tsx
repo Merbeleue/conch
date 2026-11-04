@@ -4,6 +4,7 @@ import type { ThemeId } from "../lib/themes";
 import type { ConnectRequest, SavedHost } from "../types";
 import { GroupCombobox } from "./GroupCombobox";
 import { ThemeSelect } from "./ThemePicker";
+import { osName } from "../lib/platform";
 
 interface ConnectFormProps {
   initial: SavedHost | null;
@@ -196,7 +197,7 @@ export function ConnectForm({
             <input
               value={username}
               onChange={(event) => setUsername(event.target.value)}
-              placeholder="Defaults to your macOS user"
+              placeholder={`Defaults to your ${osName} user`}
               autoComplete="off"
               autoCapitalize="off"
               spellCheck={false}

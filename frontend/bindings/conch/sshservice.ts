@@ -25,8 +25,9 @@ export function Disconnect(sessionID: string): $CancellablePromise<void> {
 }
 
 /**
- * OpenLocal starts the user's login shell on a local PTY. It shares the SSH
- * session plumbing so the frontend treats both kinds of terminal identically.
+ * OpenLocal starts the user's login shell on a local terminal — a PTY on
+ * macOS, a ConPTY on Windows. It shares the SSH session plumbing so the
+ * frontend treats both kinds of terminal identically.
  */
 export function OpenLocal(): $CancellablePromise<$models.SessionInfo | null> {
     return $Call.ByID(4103565554);

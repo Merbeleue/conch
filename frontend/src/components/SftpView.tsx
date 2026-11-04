@@ -18,6 +18,14 @@ import { SftpRowMenu, type RowMenuTarget } from "./SftpRowMenu";
 import { SourceGlyph, SourcePicker } from "./SourcePicker";
 import { TransferPanel } from "./TransferPanel";
 import { ConfirmDialog } from "./ConfirmDialog";
+import {
+  childPath,
+  fileManagerLabel,
+  isWindows,
+  localMachineLabel,
+  trashName,
+  windowsNameProblem,
+} from "../lib/platform";
 import { sourceAddress, sourceKey } from "../lib/sftp";
 import {
   firstTransferError,
@@ -77,7 +85,7 @@ type Side = TransferSide;
 const LOCAL_SOURCE: SFTPSource = {
   Kind: "local",
   SessionID: "",
-  Label: "This Mac",
+  Label: localMachineLabel,
   Host: "localhost",
   User: "",
   Port: 0,
@@ -85,13 +93,6 @@ const LOCAL_SOURCE: SFTPSource = {
 
 function blankPane(path = ""): PaneView {
   return { listing: null, loading: false, error: "", path };
-}
-
-function childPath(dir: string, name: string): string {
-  if (!dir || dir === "/") {
-    return `/${name}`;
-  }
-  return `${dir.replace(/\/+$/, "")}/${name}`;
 }
 
 function errorText(err: unknown): string {
@@ -368,7 +369,7 @@ export function SftpView({ sessionId, label, onExit }: SftpViewProps) {
         }));
         setSelections((current) => ({ ...current, left: [] }));
         void loadPane("left", LOCAL_SOURCE, recall(LOCAL_SOURCE), true);
-        notify("The source connection ended. Showing This Mac.");
+        notify(`The source connection ended. Showing ${localMachineLabel}.`);
       }
     });
   }, [sessionId, loadPane, recall]);
@@ -768,8 +769,12 @@ export function SftpView({ sessionId, label, onExit }: SftpViewProps) {
       setRenaming(null);
       return;
     }
-    if (target.includes("/")) {
-      setRenaming({ ...current, error: "A name cannot contain /" });
+    if (target.includes("/") || target.includes("\\")) {
+      setRenaming({ ...current, error: "A name cannot contain / or \\" });
+      return;
+    }
+    if (isWindows && sourceOf(current.side).Kind === "local" && windowsNameProblem(target)) {
+      setRenaming({ ...current, error: `“${target}” is not a valid Windows name` });
       return;
     }
     const source = sourceOf(current.side);
@@ -862,8 +867,8 @@ export function SftpView({ sessionId, label, onExit }: SftpViewProps) {
       notify(
         source.Kind === "local"
           ? target.names.length === 1
-            ? `“${target.names[0]}” moved to the Trash.`
-            : `${target.names.length} items moved to the Trash.`
+            ? `“${target.names[0]}” moved to the ${trashName}.`
+            : `${target.names.length} items moved to the ${trashName}.`
           : target.names.length === 1
             ? `“${target.names[0]}” deleted.`
             : `${target.names.length} items deleted.`,
@@ -1032,7 +1037,7 @@ export function SftpView({ sessionId, label, onExit }: SftpViewProps) {
               className="sftp-tool is-danger"
               onClick={() => beginDelete(side, selections[side])}
               disabled={selections[side].length === 0 || gone}
-              title={source.Kind === "local" ? "Move the selected items to the Trash" : "Delete the selected items"}
+              title={source.Kind === "local" ? `Move the selected items to the ${trashName}` : "Delete the selected items"}
               aria-label="Delete selected items"
             >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
@@ -1421,22 +1426,22 @@ export function SftpView({ sessionId, label, onExit }: SftpViewProps) {
       {deleteTarget && (
         <ConfirmDialog
           icon="trash"
-          eyebrow={sourceOf(deleteTarget.side).Kind === "local" ? "Move to Trash" : "Delete on remote host"}
+          eyebrow={sourceOf(deleteTarget.side).Kind === "local" ? `Move to ${trashName}` : "Delete on remote host"}
           title={
             sourceOf(deleteTarget.side).Kind === "local"
               ? deleteTarget.names.length === 1
-                ? `Move “${deleteTarget.names[0]}” to Trash?`
-                : `Move ${deleteTarget.names.length} items to Trash?`
+                ? `Move “${deleteTarget.names[0]}” to ${trashName}?`
+                : `Move ${deleteTarget.names.length} items to ${trashName}?`
               : deleteTarget.names.length === 1
                 ? `Delete “${deleteTarget.names[0]}”?`
                 : `Delete ${deleteTarget.names.length} items?`
           }
           description={
             sourceOf(deleteTarget.side).Kind === "local"
-              ? "Local items move to the macOS Trash, so you can bring them back from Finder."
+              ? `Local items move to the ${trashName}, so you can bring them back from ${fileManagerLabel}.`
               : "This deletes the items on the remote host. Folders are removed with everything inside them, and there is no Trash on the server."
           }
-          confirmLabel={sourceOf(deleteTarget.side).Kind === "local" ? "Move to Trash" : "Delete"}
+          confirmLabel={sourceOf(deleteTarget.side).Kind === "local" ? `Move to ${trashName}` : "Delete"}
           onConfirm={() => void confirmDelete()}
           onCancel={() => setDeleteTarget(null)}
         />

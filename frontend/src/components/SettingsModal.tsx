@@ -10,6 +10,7 @@ import {
   type AppSettings,
   type FontFamilyId,
 } from "../lib/settings";
+import { modKey, osName } from "../lib/platform";
 import { ThemeGrid } from "./ThemePicker";
 
 interface SettingsModalProps {
@@ -277,17 +278,17 @@ export function SettingsModal({ settings, onChange, onClose }: SettingsModalProp
                 <h3>Conch</h3>
                 <p className="settings-version">Version 0.1.0 · Open source</p>
                 <p className="settings-copy">
-                  A native macOS workspace for SSH and local shells, built with
+                  A native {osName} workspace for SSH and local shells, built with
                   Wails, React, and xterm.js.
                 </p>
                 <div className="settings-keys">
                   <div>
                     <span>Search saved hosts</span>
-                    <kbd>⌘F</kbd>
+                    <kbd>{modKey}F</kbd>
                   </div>
                   <div>
                     <span>Open settings</span>
-                    <kbd>⌘,</kbd>
+                    <kbd>{modKey},</kbd>
                   </div>
                 </div>
               </div>

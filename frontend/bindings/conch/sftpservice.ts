@@ -33,7 +33,7 @@ export function Conflicts(req: $models.SFTPConflictRequest): $CancellablePromise
 }
 
 /**
- * Delete removes the selected entries. Local items are moved to the macOS Trash
+ * Delete removes the selected entries. Local items go to the Trash / Recycle Bin
  * so they stay recoverable; remote items are deleted for real, folders included.
  */
 export function Delete(req: $models.SFTPDeleteRequest): $CancellablePromise<void> {
@@ -64,7 +64,7 @@ export function SetLabels(labels: { [_ in string]?: string } | null): $Cancellab
 }
 
 /**
- * Sources lists this Mac plus every live SSH session for the source picker.
+ * Sources lists the local machine plus every live SSH session for the source picker.
  */
 export function Sources(): $CancellablePromise<$models.SFTPSource[] | null> {
     return $Call.ByID(1624743354);

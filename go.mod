@@ -3,6 +3,7 @@ module conch
 go 1.26.0
 
 require (
+	github.com/UserExistsError/conpty v0.1.4
 	github.com/creack/pty v1.1.24
 	github.com/pkg/sftp v1.13.12
 	github.com/wailsapp/wails/v3 v3.0.0

@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { trashName } from "../lib/platform";
 
 export interface RowMenuTarget {
   side: "left" | "right";
@@ -109,7 +110,7 @@ export function SftpRowMenu({
         role="menuitem"
         className="sftp-row-menu-item is-danger"
         onClick={onDelete}
-        title={isRemote ? "Delete permanently on the remote host" : "Move to Trash"}
+        title={isRemote ? "Delete permanently on the remote host" : `Move to ${trashName}`}
       >
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
           <path d="M4.8 7.4h14.4" />
@@ -117,7 +118,7 @@ export function SftpRowMenu({
           <path d="M6.6 7.4l.9 11.4h9l.9-11.4" />
           <path d="M10.4 10.6v5.2M13.6 10.6v5.2" />
         </svg>
-        <span>{isRemote ? "Delete" : "Move to Trash"}</span>
+        <span>{isRemote ? "Delete" : `Move to ${trashName}`}</span>
         <kbd>⌫</kbd>
       </button>
     </div>,

@@ -10,16 +10,13 @@ import (
 	"io"
 	"net"
 	"os"
-	"os/exec"
 	"os/user"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 
-	"github.com/creack/pty"
 	"github.com/pkg/sftp"
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"golang.org/x/crypto/ssh"
@@ -79,10 +76,9 @@ type sshSession struct {
 	resize   func(cols, rows int) error
 	cleanups []func()
 
-	// Local shell sessions own a PTY and reap the child via waitDone.
-	pty      *os.File
-	cmd      *exec.Cmd
-	waitDone chan error
+	// Local shell sessions own a terminal and reap the child via waitDone.
+	term     localTerminal
+	waitDone chan localExit
 
 	done      chan struct{}
 	closeOnce sync.Once
@@ -425,18 +421,17 @@ func (p *pendingConnect) abort() {
 	}
 }
 
-// OpenLocal starts the user's login shell on a local PTY. It shares the SSH
-// session plumbing so the frontend treats both kinds of terminal identically.
+// OpenLocal starts the user's login shell on a local terminal — a PTY on
+// macOS, a ConPTY on Windows. It shares the SSH session plumbing so the
+// frontend treats both kinds of terminal identically.
 func (s *SSHService) OpenLocal() (*SessionInfo, error) {
-	cmd := exec.Command(localShell(), "-l")
-	cmd.Env = append(os.Environ(), "TERM=xterm-256color")
+	dir := ""
 	if home, err := os.UserHomeDir(); err == nil {
-		cmd.Dir = home
+		dir = home
 	}
-
-	ptmx, err := pty.StartWithSize(cmd, &pty.Winsize{Cols: 120, Rows: 32})
+	term, err := startLocalShell(localShellArgv(), dir, 120, 32)
 	if err != nil {
-		return nil, fmt.Errorf("start local shell: %w", err)
+		return nil, err
 	}
 
 	info := &SessionInfo{
@@ -446,20 +441,17 @@ func (s *SSHService) OpenLocal() (*SessionInfo, error) {
 		User: defaultUser(),
 	}
 
-	waitDone := make(chan error, 1)
+	waitDone := make(chan localExit, 1)
 	go func() {
-		waitDone <- cmd.Wait()
+		waitDone <- term.Wait()
 	}()
 
 	sess := &sshSession{
-		id:     info.ID,
-		pty:    ptmx,
-		cmd:    cmd,
-		stdin:  ptmx,
-		stdout: ptmx,
-		resize: func(cols, rows int) error {
-			return pty.Setsize(ptmx, &pty.Winsize{Cols: uint16(cols), Rows: uint16(rows)})
-		},
+		id:       info.ID,
+		term:     term,
+		stdin:    term,
+		stdout:   term,
+		resize:   term.Resize,
 		waitDone: waitDone,
 		done:     make(chan struct{}),
 	}
@@ -628,18 +620,8 @@ func (s *SSHService) pump(sess *sshSession) {
 
 func waitForSession(sess *sshSession) (string, error) {
 	if sess.waitDone != nil {
-		waitErr := <-sess.waitDone
-		reason := "exited"
-		var exitErr *exec.ExitError
-		if errors.As(waitErr, &exitErr) {
-			if status, ok := exitErr.Sys().(syscall.WaitStatus); ok && status.Signaled() {
-				reason = "signal " + status.Signal().String()
-			} else {
-				reason = fmt.Sprintf("exit %d", exitErr.ExitCode())
-			}
-			waitErr = nil
-		}
-		return reason, waitErr
+		exit := <-sess.waitDone
+		return exit.Reason, exit.Err
 	}
 
 	waitErr := sess.session.Wait()
@@ -663,10 +645,11 @@ func (s *SSHService) finish(sess *sshSession, reason string, err error) {
 	sess.closeOnce.Do(func() {
 		closed = true
 		close(sess.done)
-		// On macOS a blocked reader can keep the PTY master open after Close,
-		// so hang up the local shell's process group first.
-		if reason == "disconnected" && sess.pty != nil && sess.cmd != nil && sess.cmd.Process != nil {
-			_ = syscall.Kill(-sess.cmd.Process.Pid, syscall.SIGHUP)
+		// A local shell keeps running (and can keep the terminal open) unless
+		// it is told to stop; on macOS a blocked reader also holds the PTY
+		// master, so hang the process group up before closing it.
+		if reason == "disconnected" && sess.term != nil {
+			sess.term.Terminate()
 		}
 		_ = sess.stdin.Close()
 		sess.sftpMu.Lock()
@@ -871,18 +854,6 @@ func expandHome(path string) string {
 		}
 	}
 	return path
-}
-
-func localShell() string {
-	for _, candidate := range []string{os.Getenv("SHELL"), "/bin/zsh", "/bin/bash", "/bin/sh"} {
-		if !filepath.IsAbs(candidate) {
-			continue
-		}
-		if info, err := os.Stat(candidate); err == nil && !info.IsDir() && info.Mode()&0o111 != 0 {
-			return candidate
-		}
-	}
-	return "/bin/sh"
 }
 
 func defaultUser() string {

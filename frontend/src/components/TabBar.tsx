@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import type { PaneEdge, SplitDirection } from "../types";
+import { modKey, shiftModKey } from "../lib/platform";
 
 export interface TabItem {
   id: string;
@@ -410,7 +411,7 @@ export function TabBar({
                   <line x1="12" y1="4.5" x2="12" y2="19.5" />
                 </svg>
                 Split right
-                <span className="context-menu-hint">⌘D</span>
+                <span className="context-menu-hint">{modKey}D</span>
               </button>
               <button
                 type="button"
@@ -427,7 +428,7 @@ export function TabBar({
                   <line x1="4" y1="12" x2="20" y2="12" />
                 </svg>
                 Split down
-                <span className="context-menu-hint">⇧⌘D</span>
+                <span className="context-menu-hint">{shiftModKey}D</span>
               </button>
               <div className="context-menu-sep" role="separator" />
               <button

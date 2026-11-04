@@ -11,7 +11,6 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
-	"syscall"
 	"time"
 
 	"github.com/pkg/sftp"
@@ -22,7 +21,7 @@ import (
 // the result reports Canceled instead of an error.
 var errTransferCancelled = errors.New("transfer cancelled")
 
-// SFTPSource identifies one side of the file manager: this Mac or a live SSH
+// SFTPSource identifies one side of the file manager: the local machine or a live SSH
 // session. Labels come from the main window so renamed tabs keep their name.
 type SFTPSource struct {
 	Kind      string
@@ -97,7 +96,7 @@ type SFTPRenameRequest struct {
 }
 
 // SFTPDeleteRequest removes the named entries from one folder. Local entries go
-// to the macOS Trash, remote entries are deleted for real after the window has
+// to the system Trash or Recycle Bin, remote entries are deleted for real after the window has
 // asked for confirmation.
 type SFTPDeleteRequest struct {
 	Source SFTPSource
@@ -187,9 +186,9 @@ func (s *SFTPService) SetLabels(labels map[string]string) {
 	}
 }
 
-// Sources lists this Mac plus every live SSH session for the source picker.
+// Sources lists the local machine plus every live SSH session for the source picker.
 func (s *SFTPService) Sources() []SFTPSource {
-	sources := []SFTPSource{{Kind: "local", Label: "This Mac", Host: "localhost"}}
+	sources := []SFTPSource{{Kind: "local", Label: localSourceLabel(), Host: "localhost"}}
 	for _, ref := range s.ssh.liveSSHSessions() {
 		s.mu.Lock()
 		label := s.labels[ref.id]
@@ -595,6 +594,11 @@ func (s *SFTPService) Rename(req SFTPRenameRequest) error {
 	if !validTransferName(to) {
 		return errors.New("a name cannot be empty or contain /")
 	}
+	if endpoint.kind == "local" {
+		if problem := platformNameProblem(to); problem != "" {
+			return errors.New(problem)
+		}
+	}
 	if from == to {
 		return nil
 	}
@@ -609,7 +613,7 @@ func (s *SFTPService) Rename(req SFTPRenameRequest) error {
 	return endpoint.rename(src, dst)
 }
 
-// Delete removes the selected entries. Local items are moved to the macOS Trash
+// Delete removes the selected entries. Local items go to the Trash / Recycle Bin
 // so they stay recoverable; remote items are deleted for real, folders included.
 func (s *SFTPService) Delete(req SFTPDeleteRequest) error {
 	endpoint, err := s.endpoint(req.Source)
@@ -711,7 +715,7 @@ func (s *SFTPService) endpoint(src SFTPSource) (*sftpEndpoint, error) {
 		kind = "local"
 	}
 	if kind == "local" {
-		return &sftpEndpoint{kind: "local", label: "This Mac"}, nil
+		return &sftpEndpoint{kind: "local", label: localSourceLabel()}, nil
 	}
 	if kind != "remote" {
 		return nil, fmt.Errorf("unknown source type %q", src.Kind)
@@ -920,97 +924,6 @@ func (e *sftpEndpoint) removeAll(value string, info os.FileInfo) error {
 		}
 	}
 	return e.remove(value)
-}
-
-// moveToTrash puts a local entry in the user's Trash folder. Renaming into
-// ~/.Trash needs no extra permissions. When the entry lives on another volume
-// the rename fails, so it is copied first and only removed once the copy is
-// complete — an external drive never loses the file outright.
-func moveToTrash(value string) error {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return err
-	}
-	trash := filepath.Join(home, ".Trash")
-	if err := os.MkdirAll(trash, 0o700); err != nil {
-		return err
-	}
-	dest := filepath.Join(trash, filepath.Base(value))
-	if _, err := os.Lstat(dest); err == nil {
-		base := filepath.Base(value)
-		ext := filepath.Ext(base)
-		stem := strings.TrimSuffix(base, ext)
-		if stem == "" {
-			stem, ext = base, ""
-		}
-		for i := 1; i < 10000; i++ {
-			candidate := filepath.Join(trash, fmt.Sprintf("%s (%d)%s", stem, i, ext))
-			if _, err := os.Lstat(candidate); err != nil {
-				dest = candidate
-				break
-			}
-		}
-	}
-	err = os.Rename(value, dest)
-	if err == nil {
-		return nil
-	}
-	if !errors.Is(err, syscall.EXDEV) {
-		return err
-	}
-	if err := copyToTrash(value, dest); err != nil {
-		return err
-	}
-	return os.RemoveAll(value)
-}
-
-func copyToTrash(from, to string) error {
-	info, err := os.Lstat(from)
-	if err != nil {
-		return err
-	}
-	if info.Mode()&os.ModeSymlink != 0 {
-		target, err := os.Readlink(from)
-		if err != nil {
-			return err
-		}
-		return os.Symlink(target, to)
-	}
-	if info.IsDir() {
-		if err := os.MkdirAll(to, info.Mode().Perm()); err != nil {
-			return err
-		}
-		entries, err := os.ReadDir(from)
-		if err != nil {
-			return err
-		}
-		for _, entry := range entries {
-			if err := copyToTrash(filepath.Join(from, entry.Name()), filepath.Join(to, entry.Name())); err != nil {
-				return err
-			}
-		}
-		return os.Chmod(to, info.Mode().Perm())
-	}
-	if !info.Mode().IsRegular() {
-		return fmt.Errorf("%s is not a regular file", filepath.Base(from))
-	}
-	source, err := os.Open(from)
-	if err != nil {
-		return err
-	}
-	defer source.Close()
-	target, err := os.OpenFile(to, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, info.Mode().Perm())
-	if err != nil {
-		return err
-	}
-	buffer := make([]byte, 64*1024)
-	_, copyErr := io.CopyBuffer(target, source, buffer)
-	closeErr := target.Close()
-	if copyErr != nil {
-		_ = os.Remove(to)
-		return copyErr
-	}
-	return closeErr
 }
 
 func validTransferName(name string) bool {
