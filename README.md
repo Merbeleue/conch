@@ -37,6 +37,7 @@ into docs/screenshots/ and uncomment:
 
 | | |
 | --- | --- |
+| **Platforms** | macOS 12+ and Windows 10/11, x64 and ARM64 — the system's own webview on both, no Electron |
 | **Sessions** | Tabbed SSH and local shell sessions, split panes you build by dragging, workspaces that name themselves from the hosts inside |
 | **Saved hosts** | Labels, collapsible groups, search (`⌘F`), duplicate/edit/delete from the context menu, click to focus an open tab |
 | **SFTP** | A two-pane file manager that opens *inside* the current tab — transfers, rename, delete, `chmod`, all without hiding your host tabs |
