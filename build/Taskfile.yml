@@ -191,16 +191,40 @@ tasks:
       - wails3 generate bindings -f '{{.BUILD_FLAGS}}' -clean=true{{if eq .OBFUSCATED "true"}} -obfuscated{{end}} -ts -i
 
   generate:icons:
-    summary: Generates Windows `.ico` and Mac `.icns` from `appicon.png`. IconComposer is deliberately not used, because the `Assets.car` it emits would override `icons.icns` and flatten the mark into a gradient silhouette.
-    run: once
+    summary: Rasterises `docs/conch-appicon.svg` into `appicon.png`, then generates Windows `.ico` and Mac `.icns`. `sips` (CoreSVG) is used rather than `qlmanage -t`, which composites the SVG onto white and gives the icon a white edge. IconComposer is deliberately not used, because the `Assets.car` it emits would override `icons.icns` and flatten the mark into a gradient silhouette. `wails3 generate icons` also drops the alpha channel, so `darwin/icons.icns` is rebuilt with iconutil afterwards to keep the transparent corners.
     dir: build
     sources:
-      - "appicon.png"
+      - "../docs/conch-appicon.svg"
     generates:
+      - "appicon.png"
       - "darwin/icons.icns"
       - "windows/icon.ico"
     cmds:
+      # This task is reached from two dependency paths, and go-task runs deps in
+      # parallel, so every step writes through a private temp file and renames.
+      - |
+        set -e
+        tmp="$(mktemp -d)"; trap 'rm -rf "$tmp"' EXIT
+        sips -s format png --resampleWidth 1024 ../docs/conch-appicon.svg --out "$tmp/appicon.png" >/dev/null
+        mv -f "$tmp/appicon.png" appicon.png
       - wails3 generate icons -input appicon.png -macfilename darwin/icons.icns -windowsfilename windows/icon.ico
+      - |
+        set -e
+        work="$(mktemp -d)"
+        trap 'rm -rf "$work"' EXIT
+        iconset="$work/appicon.iconset"
+        mkdir -p "$iconset"
+        sips -z 16   16   appicon.png --out "$iconset/icon_16x16.png"      >/dev/null
+        sips -z 32   32   appicon.png --out "$iconset/icon_16x16@2x.png"   >/dev/null
+        sips -z 32   32   appicon.png --out "$iconset/icon_32x32.png"      >/dev/null
+        sips -z 64   64   appicon.png --out "$iconset/icon_32x32@2x.png"   >/dev/null
+        sips -z 128  128  appicon.png --out "$iconset/icon_128x128.png"    >/dev/null
+        sips -z 256  256  appicon.png --out "$iconset/icon_128x128@2x.png" >/dev/null
+        sips -z 256  256  appicon.png --out "$iconset/icon_256x256.png"    >/dev/null
+        sips -z 512  512  appicon.png --out "$iconset/icon_256x256@2x.png" >/dev/null
+        sips -z 512  512  appicon.png --out "$iconset/icon_512x512.png"    >/dev/null
+        sips -z 1024 1024 appicon.png --out "$iconset/icon_512x512@2x.png" >/dev/null
+        iconutil -c icns "$iconset" -o darwin/icons.icns
 
   dev:frontend:
     summary: Runs the frontend in development mode

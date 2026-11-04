@@ -14,7 +14,9 @@ info:
   version: "0.1.0" # The application version
   # cfBundleIconName is deliberately left unset: Conch ships no Assets.car, so the
   # Dock/Finder icon comes from build/darwin/icons.icns (CFBundleIconFile), which
-  # `wails3 generate icons` rebuilds from build/appicon.png on every package run.
+  # build/Taskfile.yml's generate:icons rebuilds from build/appicon.png with iconutil
+  # on every package run (iconutil keeps the alpha channel; wails3's own icns writer
+  # flattens the transparent corners to white).
 
 # Dev mode configuration
 dev_mode:
