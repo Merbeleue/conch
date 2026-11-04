@@ -48,9 +48,19 @@ Conch 是一个原生的 macOS 应用，给整天在几台服务器之间来回�
 
 到 [Releases 页面](https://github.com/Merbeleue/conch/releases/latest) 下载
 **`Conch-0.1.0.dmg`**——通用二进制，Apple 芯片和 Intel 芯片都能用，要求 macOS 12 或更新。
-把应用拖进「应用程序」后，第一次请用右键 →「打开」：目前构建只做了 ad-hoc 签名、还没有
-公证，直接双击会被 Gatekeeper 拦下。（也可以在终端执行 `xattr -cr /Applications/conch.app`
-清除隔离标记。）每个版本的改动记录在 [CHANGELOG.md](./CHANGELOG.md)。
+把应用拖进「应用程序」后，第一次启动需要手动放行：目前构建只做了 ad-hoc 签名、还没有公证，
+Gatekeeper 会提示「Apple 无法验证 "conch"…」。先双击一次让它被拦下，再打开
+**系统设置 → 隐私与安全性**，在「已阻止 "conch" 以保护 Mac」那一行点 **仍要打开**。
+（macOS 15 上，右键 →「打开」对未公证的 app 已经不再是绕过入口了。）
+
+习惯终端的话可以完全绕开 Gatekeeper——`curl` 不会给文件打隔离标记，装好就能直接双击打开：
+
+```bash
+curl -fsSL https://github.com/Merbeleue/conch/releases/download/v0.1.0/Conch-0.1.0.tar.gz \
+  | tar -xz -C /Applications
+```
+
+每个版本的改动记录在 [CHANGELOG.md](./CHANGELOG.md)。
 
 ## 从源码构建
 

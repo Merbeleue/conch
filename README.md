@@ -48,10 +48,21 @@ into docs/screenshots/ and uncomment:
 ## Download
 
 Grab **`Conch-0.1.0.dmg`** from the [latest release](https://github.com/Merbeleue/conch/releases/latest)
-— a universal binary (Apple Silicon and Intel) for macOS 12 and newer. Drag the app
-into Applications, then launch it once with right-click → **Open**: builds are ad-hoc
-signed but not yet notarized, so Gatekeeper blocks the first plain double-click.
-(Or clear the quarantine flag with `xattr -cr /Applications/conch.app`.)
+— a universal binary (Apple Silicon and Intel) for macOS 12 and newer. Drag the app into
+Applications, then launch it once and approve it: builds are ad-hoc signed but not yet
+notarized, so Gatekeeper stops the first launch with *"Apple can't verify "conch"…"*.
+Double-click it once, then open **System Settings → Privacy & Security** and press
+**Open Anyway** next to the "blocked conch" line. (Right-click → Open is no longer an
+escape hatch for un-notarized apps on macOS 15.)
+
+If you live in a terminal, skip Gatekeeper entirely — `curl` never sets the quarantine
+flag, so the app opens on a plain double-click:
+
+```bash
+curl -fsSL https://github.com/Merbeleue/conch/releases/download/v0.1.0/Conch-0.1.0.tar.gz \
+  | tar -xz -C /Applications
+```
+
 Release notes live in [CHANGELOG.md](./CHANGELOG.md).
 
 ## Build from source

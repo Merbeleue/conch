@@ -50,15 +50,16 @@ First public release. Download `Conch-0.1.0.dmg` from the
 ### Known limitations
 
 - Release builds are **ad-hoc signed, not notarized** (no Apple Developer
-  account behind this project yet). macOS Gatekeeper will complain on first
-  launch because the download carries the quarantine attribute; open the app
-  once via right-click → Open, or run
-  `xattr -cr /Applications/conch.app` after installing.
+  account behind this project yet). macOS Gatekeeper blocks the first launch
+  because the download carries the quarantine attribute: double-click once, then
+  press **Open Anyway** in System Settings → Privacy & Security. On macOS 15
+  right-click → Open no longer bypasses this. Installing from the terminal with
+  `curl … | tar -xz -C /Applications` avoids Gatekeeper altogether because curl
+  doesn't set the quarantine flag.
 - A saved password is stored **in plain text** in the app's localStorage. Use it
   only on a machine you trust; unchecking "Save password" and reconnecting
   removes it.
 - No port forwarding, no `~/.ssh/config` import, no session restore after
   relaunch, and the Linux/Windows targets are not built or tested.
-- The app icon is still the stock Wails placeholder.
 
 [0.1.0]: https://github.com/Merbeleue/conch/releases/tag/v0.1.0

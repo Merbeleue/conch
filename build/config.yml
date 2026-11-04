@@ -12,9 +12,9 @@ info:
   copyright: "(c) 2026, Conch contributors" # Copyright text
   comments: "A modern open-source SSH terminal" # Comments
   version: "0.1.0" # The application version
-  # cfBundleIconName: "appicon" # The macOS icon name in Assets.car icon bundles (optional)
-  #                               # Should match the name of your .icon file without the extension
-  #                               # If not set and Assets.car exists, defaults to "appicon"
+  # cfBundleIconName is deliberately left unset: Conch ships no Assets.car, so the
+  # Dock/Finder icon comes from build/darwin/icons.icns (CFBundleIconFile), which
+  # `wails3 generate icons` rebuilds from build/appicon.png on every package run.
 
 # Dev mode configuration
 dev_mode:
