@@ -22,6 +22,7 @@ import {
 } from "./lib/hosts";
 import { setInputBroadcast } from "./lib/inputBroadcast";
 import { setHighlightSettings } from "./lib/highlight";
+import { I18nProvider, makeT, translate, type Language } from "./lib/i18n";
 import { loadSettings, updateSettings, type AppSettings } from "./lib/settings";
 import { startOutputStream } from "./lib/sessionStream";
 import {
@@ -87,6 +88,9 @@ export default function App() {
   const [confirmDisconnectAll, setConfirmDisconnectAll] = useState(false);
   const [settings, setSettings] = useState<AppSettings>(() => loadSettings());
   const [settingsOpen, setSettingsOpen] = useState(false);
+  // Bound to the current language so callbacks and notices follow a switch
+  // without a restart.
+  const t = useMemo(() => makeT(settings.language), [settings.language]);
   // Keystrokes fan out to every live session while this is on. It is
   // deliberately session-scoped: a fresh launch always starts silent.
   const [broadcast, setBroadcast] = useState(false);
@@ -194,13 +198,13 @@ export default function App() {
         return {
           id: workspace.id,
           label: workspace.label,
-          meta: workspaceMeta(ids, (id) => sessionById.get(id)),
+          meta: workspaceMeta(ids, (id) => sessionById.get(id), settings.language),
           kind: primary?.info.Kind ?? "ssh",
           exited: Boolean(primary?.exit),
           paneCount: ids.length,
         };
       }),
-    [workspaces, sessionById],
+    [workspaces, sessionById, settings.language],
   );
 
   // A host's own theme takes over while its session is selected. Opening
@@ -212,6 +216,12 @@ export default function App() {
   useEffect(() => {
     applyTheme(windowTheme);
   }, [windowTheme]);
+
+  // User-facing errors from the Go side (dial failures, local shell, SFTP) use
+  // the same language as the chrome.
+  useEffect(() => {
+    void SSHService.SetLanguage(settings.language).catch(() => undefined);
+  }, [settings.language]);
 
   // Keyword colours live in the stream module so the byte path can read them
   // without every pane being threaded through it. Pushing them here is what makes
@@ -370,8 +380,8 @@ export default function App() {
     setPendingTrust(null);
     setError(null);
     setConnecting(false);
-    setNotice("Connection cancelled.");
-  }, [abortConnectVisual]);
+    setNotice(t("Connection cancelled."));
+  }, [abortConnectVisual, t]);
 
   const handleSaveHost = useCallback(
     (request: ConnectRequest) => {
@@ -388,9 +398,9 @@ export default function App() {
         ),
       );
       setError(null);
-      setNotice(`Saved ${saved.saved.label || saved.saved.host}.`);
+      setNotice(t("Saved {name}.", { name: saved.saved.label || saved.saved.host }));
     },
-    [editingId],
+    [editingId, t],
   );
 
   const handleSettingsChange = (patch: Partial<AppSettings>) => {
@@ -399,15 +409,17 @@ export default function App() {
 
   const handleToggleBroadcast = () => {
     if (liveSessionIds.length < 2) {
-      setNotice("Connect at least two sessions to broadcast input.");
+      setNotice(t("Connect at least two sessions to broadcast input."));
       return;
     }
     const next = !broadcast;
     setBroadcast(next);
     setNotice(
       next
-        ? `Broadcasting keystrokes to ${liveSessionIds.length} sessions.`
-        : "Broadcast off — input goes to the focused pane.",
+        ? t("Broadcasting keystrokes to {count} sessions.", {
+            count: liveSessionIds.length,
+          })
+        : t("Broadcast off — input goes to the focused pane."),
     );
   };
 
@@ -420,8 +432,8 @@ export default function App() {
     }
     setNotice(
       name
-        ? `Moved ${host.label || host.host} to ${name}.`
-        : `Removed ${host.label || host.host} from its group.`,
+        ? t("Moved {name} to {group}.", { name: host.label || host.host, group: name })
+        : t("Removed {name} from its group.", { name: host.label || host.host }),
     );
   };
 
@@ -461,7 +473,7 @@ export default function App() {
           return;
         }
         if (!info) {
-          throw new Error("The SSH service returned no session.");
+          throw new Error(t("The SSH service returned no session."));
         }
 
         const label = (options.label ?? request.Label).trim() || info.Host;
@@ -510,7 +522,7 @@ export default function App() {
             setError(null);
           }
         } else {
-          const message = errorMessage(err);
+          const message = errorMessage(err, t("Connection failed. Check the host and your credentials."));
           if (showProgress || activeWorkspaceIdRef.current === null) {
             setError(message);
           } else {
@@ -527,7 +539,7 @@ export default function App() {
         }
       }
     },
-    [startConnectVisual, finishConnectVisual, abortConnectVisual, settings.terminalType],
+    [startConnectVisual, finishConnectVisual, abortConnectVisual, settings.terminalType, t],
   );
 
   const openLocalTab = useCallback(
@@ -539,9 +551,10 @@ export default function App() {
       }
 
       const requestId = newRequestID();
+      const localLabel = t("Local shell");
       const visualToken = startConnectVisual({
         kind: "local",
-        label: (options.label ?? "Local shell").trim() || "Local shell",
+        label: (options.label ?? localLabel).trim() || localLabel,
         host: "",
         user: "",
         port: 0,
@@ -557,10 +570,10 @@ export default function App() {
           return;
         }
         if (!info) {
-          throw new Error("The terminal service returned no session.");
+          throw new Error(t("The terminal service returned no session."));
         }
 
-        const label = (options.label ?? "Local shell").trim() || "Local shell";
+        const label = (options.label ?? localLabel).trim() || localLabel;
         const session: SessionTab = {
           info: {
             ID: info.ID,
@@ -585,7 +598,7 @@ export default function App() {
           return;
         }
         abortConnectVisual(visualToken);
-        const message = errorMessage(err);
+        const message = errorMessage(err, t("Connection failed. Check the host and your credentials."));
         if (showProgress || activeWorkspaceIdRef.current === null) {
           setError(message);
         } else {
@@ -601,7 +614,7 @@ export default function App() {
         }
       }
     },
-    [startConnectVisual, finishConnectVisual, abortConnectVisual, settings.terminalType],
+    [startConnectVisual, finishConnectVisual, abortConnectVisual, settings.terminalType, t],
   );
 
   /** Adds a finished session to a new tab, an existing split, or a replacement pane. */
@@ -849,7 +862,7 @@ export default function App() {
           candidates.push({
             sessionId,
             label: session.label,
-            meta: tabMeta(session),
+            meta: tabMeta(session, settings.language),
             kind: session.info.Kind,
             originLabel: workspace.label,
           });
@@ -857,7 +870,7 @@ export default function App() {
       }
       return candidates;
     },
-    [workspaces, sessionById],
+    [workspaces, sessionById, settings.language],
   );
 
   const combineWith = useCallback(
@@ -870,7 +883,7 @@ export default function App() {
       const candidates = splitCandidates(options.workspaceId);
       if (candidates.length === 0) {
         setNotice(
-          "Nothing to split with yet — connect another host, then split to pull it into this tab.",
+          t("Nothing to split with yet — connect another host, then split to pull it into this tab."),
         );
         return;
       }
@@ -892,7 +905,7 @@ export default function App() {
         y: options.anchor?.y ?? 58,
       });
     },
-    [splitCandidates, dockSession],
+    [splitCandidates, dockSession, t],
   );
 
   const requestSplit = useCallback(
@@ -1009,7 +1022,7 @@ export default function App() {
           document.body.classList.add("is-dragging-pane");
           setSplitPicker(null);
           setDraggingSessionId(sessionId);
-          setDragGhost({ title: session.label, meta: tabMeta(session) });
+          setDragGhost({ title: session.label, meta: tabMeta(session, settings.language) });
         }
         paintGhost(moveEvent.clientX, moveEvent.clientY);
 
@@ -1075,7 +1088,7 @@ export default function App() {
       window.addEventListener("pointercancel", cancel);
       window.addEventListener("keydown", onKey);
     },
-    [workspaces, paintGhost, resolveDropTarget, dockSession],
+    [workspaces, paintGhost, resolveDropTarget, dockSession, settings.language],
   );
 
   // Dragging a tab moves the pane it is focused on.
@@ -1203,7 +1216,7 @@ export default function App() {
       return;
     }
     setHosts(result.hosts);
-    setNotice(`Created ${result.copy.label || result.copy.host}.`);
+    setNotice(t("Created {name}.", { name: result.copy.label || result.copy.host }));
   };
 
   const showHostForm = (host: SavedHost) => {
@@ -1238,7 +1251,9 @@ export default function App() {
       setFormSeed((seed) => seed + 1);
     }
     if (removed) {
-      setNotice(`Removed ${removed.label || removed.host} from saved hosts.`);
+      setNotice(
+        t("Removed {name} from saved hosts.", { name: removed.label || removed.host }),
+      );
     }
   };
 
@@ -1254,7 +1269,7 @@ export default function App() {
     // A password host without a saved secret still needs the form; every
     // other saved host can reconnect straight away.
     if (host.authMethod === "password" && !host.password) {
-      setNotice(`Enter the password for ${host.label || host.host} to connect.`);
+      setNotice(t("Enter the password for {name} to connect.", { name: host.label || host.host }));
       return;
     }
     void openSshTab(savedHostRequest(host), {
@@ -1309,19 +1324,19 @@ export default function App() {
     const workspaceId = activeWorkspace?.id ?? null;
     const session = activeSession;
     if (!workspaceId) {
-      setNotice("Connect to a server before opening SFTP.");
+      setNotice(t("Connect to a server before opening SFTP."));
       return;
     }
     if (!session) {
-      setNotice("Connect to a server before opening SFTP.");
+      setNotice(t("Connect to a server before opening SFTP."));
       return;
     }
     if (session.info.Kind !== "ssh") {
-      setNotice("SFTP is only available for SSH sessions.");
+      setNotice(t("SFTP is only available for SSH sessions."));
       return;
     }
     if (session.exit) {
-      setNotice("Reconnect this session before opening SFTP.");
+      setNotice(t("Reconnect this session before opening SFTP."));
       return;
     }
     // Labels follow renamed tabs; the picker also lists every live session so
@@ -1341,7 +1356,7 @@ export default function App() {
       }
       return { ...current, [workspaceId]: session.info.ID };
     });
-  }, [activeSession, activeWorkspace, sessions]);
+  }, [activeSession, activeWorkspace, sessions, t]);
 
   // Closing a tab takes its file manager with it.
   useEffect(() => {
@@ -1376,7 +1391,9 @@ export default function App() {
     setSplitPicker(null);
     setError(null);
     setSidebarHidden(false);
-    setNotice(count === 1 ? "Closed the open session." : `Closed all ${count} sessions.`);
+    setNotice(
+      count === 1 ? t("Closed the open session.") : t("Closed all {count} sessions.", { count }),
+    );
   };
 
   const handleTrustHost = () => {
@@ -1394,7 +1411,7 @@ export default function App() {
   const handleTrustCancel = () => {
     const trust = pendingTrust;
     setPendingTrust(null);
-    const message = "Host key was not trusted, so the connection was cancelled.";
+    const message = t("Host key was not trusted, so the connection was cancelled.");
     if (trust?.origin === "form") {
       setError(message);
     } else {
@@ -1403,196 +1420,200 @@ export default function App() {
   };
 
   return (
-    <div className="app">
-      <Sidebar
-        hosts={hosts}
-        groups={groups}
-        hidden={sidebarHidden}
-        onNew={handleNew}
-        onLocal={handleLocal}
-        onOpen={handleOpenHost}
-        onConnect={handleConnectHost}
-        onEdit={handleEditHost}
-        onDelete={handleDeleteHost}
-        onDuplicate={handleDuplicateHost}
-        onMoveToGroup={handleMoveToGroup}
-        connectedIds={connectedHostIds}
-        onSettings={() => setSettingsOpen(true)}
-      />
+    <I18nProvider language={settings.language}>
+      <div className="app">
+        <Sidebar
+          hosts={hosts}
+          groups={groups}
+          hidden={sidebarHidden}
+          onNew={handleNew}
+          onLocal={handleLocal}
+          onOpen={handleOpenHost}
+          onConnect={handleConnectHost}
+          onEdit={handleEditHost}
+          onDelete={handleDeleteHost}
+          onDuplicate={handleDuplicateHost}
+          onMoveToGroup={handleMoveToGroup}
+          connectedIds={connectedHostIds}
+          onSettings={() => setSettingsOpen(true)}
+        />
 
-      <main className={sidebarHidden ? "main is-focus" : "main"}>
-        {workspaces.length > 0 && (
-          <TabBar
-            tabs={tabItems}
-            activeId={activeWorkspaceId}
-            sidebarHidden={sidebarHidden}
-            dropHint={tabHint}
-            draggingId={
-              draggingSessionId ? workspaceBySession.get(draggingSessionId) ?? null : null
-            }
-            onToggleSidebar={() => setSidebarHidden((hidden) => !hidden)}
-            onSelect={handleSelectWorkspace}
-            onClose={closeWorkspace}
-            onNew={handleNew}
-            onClear={handleClear}
-            broadcast={broadcast}
-            broadcastAvailable={liveSessionIds.length > 1}
-            onToggleBroadcast={handleToggleBroadcast}
-            sftpAvailable={Boolean(sftpSession)}
-            sftpActive={Boolean(sftpViews[activeWorkspaceId ?? ""])}
-            sftpTarget={
-              sftpSession
-                ? `${sftpSession.label} — ${sftpSession.info.User}@${sftpSession.info.Host}`
-                : ""
-            }
-            onToggleSftp={toggleSftp}
-            onDisconnectAll={() => setConfirmDisconnectAll(true)}
-            onDuplicate={duplicateWorkspace}
-            onRename={renameWorkspace}
-            onSplit={requestSplit}
-            onDragTab={beginTabDrag}
+        <main className={sidebarHidden ? "main is-focus" : "main"}>
+          {workspaces.length > 0 && (
+            <TabBar
+              tabs={tabItems}
+              activeId={activeWorkspaceId}
+              sidebarHidden={sidebarHidden}
+              dropHint={tabHint}
+              draggingId={
+                draggingSessionId ? workspaceBySession.get(draggingSessionId) ?? null : null
+              }
+              onToggleSidebar={() => setSidebarHidden((hidden) => !hidden)}
+              onSelect={handleSelectWorkspace}
+              onClose={closeWorkspace}
+              onNew={handleNew}
+              onClear={handleClear}
+              broadcast={broadcast}
+              broadcastAvailable={liveSessionIds.length > 1}
+              onToggleBroadcast={handleToggleBroadcast}
+              sftpAvailable={Boolean(sftpSession)}
+              sftpActive={Boolean(sftpViews[activeWorkspaceId ?? ""])}
+              sftpTarget={
+                sftpSession
+                  ? `${sftpSession.label} — ${sftpSession.info.User}@${sftpSession.info.Host}`
+                  : ""
+              }
+              onToggleSftp={toggleSftp}
+              onDisconnectAll={() => setConfirmDisconnectAll(true)}
+              onDuplicate={duplicateWorkspace}
+              onRename={renameWorkspace}
+              onSplit={requestSplit}
+              onDragTab={beginTabDrag}
+            />
+          )}
+
+          <div className="main-body">
+            {workspaces.map((workspace) => (
+              <div
+                key={workspace.id}
+                className={
+                  workspace.id === activeWorkspaceId ? "pane-slot is-active" : "pane-slot"
+                }
+              >
+                <SplitWorkspace
+                  workspace={workspace}
+                  sessions={sessionById}
+                  active={workspace.id === activeWorkspaceId}
+                  globalTheme={settings.theme}
+                  prefs={terminalPrefs}
+                  dropHint={paneHint}
+                  draggingSessionId={draggingSessionId}
+                  onFocusPane={focusPane}
+                  onClosePane={closePane}
+                  onReconnectPane={reconnectPane}
+                  onRatioChange={changeRatio}
+                  onDragPane={beginSessionDrag}
+                  registerActions={registerActions}
+                />
+              </div>
+            ))}
+
+            {/* SFTP is a view layered over the panes rather than a second window:
+                the tab strip stays on screen and the terminals underneath stay
+                mounted, so a return to the terminal shows the live session. */}
+            {workspaces.map((workspace) => {
+              const sessionId = sftpViews[workspace.id];
+              if (!sessionId) {
+                return null;
+              }
+              const session = sessionById.get(sessionId);
+              return (
+                <div
+                  key={`sftp-${workspace.id}`}
+                  className={
+                    workspace.id === activeWorkspaceId ? "sftp-slot is-active" : "sftp-slot"
+                  }
+                >
+                  <SftpView
+                    sessionId={sessionId}
+                    label={session?.label ?? workspace.label}
+                    onExit={() => closeSftpFor(workspace.id)}
+                  />
+                </div>
+              );
+            })}
+
+            {activeWorkspaceId === null && (
+              <ConnectForm
+                key={formSeed}
+                initial={initial}
+                editing={editingId !== null}
+                connecting={connecting}
+                error={error}
+                groups={groups}
+                globalTheme={settings.theme}
+                onConnect={(request) =>
+                  void openSshTab(request, {
+                    showProgress: true,
+                    savedHostId: editingId,
+                  })
+                }
+                onSave={handleSaveHost}
+              />
+            )}
+          </div>
+        </main>
+
+        {connectVisual && (
+          <ConnectingOverlay visual={connectVisual} onCancel={cancelConnect} />
+        )}
+
+        {pendingTrust && (
+          <TrustHostDialog
+            trust={pendingTrust}
+            onTrust={handleTrustHost}
+            onCancel={handleTrustCancel}
           />
         )}
 
-        <div className="main-body">
-          {workspaces.map((workspace) => (
-            <div
-              key={workspace.id}
-              className={
-                workspace.id === activeWorkspaceId ? "pane-slot is-active" : "pane-slot"
-              }
-            >
-              <SplitWorkspace
-                workspace={workspace}
-                sessions={sessionById}
-                active={workspace.id === activeWorkspaceId}
-                globalTheme={settings.theme}
-                prefs={terminalPrefs}
-                dropHint={paneHint}
-                draggingSessionId={draggingSessionId}
-                onFocusPane={focusPane}
-                onClosePane={closePane}
-                onReconnectPane={reconnectPane}
-                onRatioChange={changeRatio}
-                onDragPane={beginSessionDrag}
-                registerActions={registerActions}
-              />
-            </div>
-          ))}
-
-          {/* SFTP is a view layered over the panes rather than a second window:
-              the tab strip stays on screen and the terminals underneath stay
-              mounted, so a return to the terminal shows the live session. */}
-          {workspaces.map((workspace) => {
-            const sessionId = sftpViews[workspace.id];
-            if (!sessionId) {
-              return null;
+        {confirmDisconnectAll && (
+          <ConfirmDialog
+            eyebrow={t("Close all sessions")}
+            title={t("Disconnect all sessions?")}
+            description={
+              sessions.length === 1
+                ? t("This ends the open session and closes its tab. Scrollback will be lost.")
+                : t("This ends all {count} open sessions and closes every tab. Scrollback will be lost.", {
+                    count: sessions.length,
+                  })
             }
-            const session = sessionById.get(sessionId);
-            return (
-              <div
-                key={`sftp-${workspace.id}`}
-                className={
-                  workspace.id === activeWorkspaceId ? "sftp-slot is-active" : "sftp-slot"
-                }
-              >
-                <SftpView
-                  sessionId={sessionId}
-                  label={session?.label ?? workspace.label}
-                  onExit={() => closeSftpFor(workspace.id)}
-                />
-              </div>
-            );
-          })}
+            confirmLabel={t("Disconnect all")}
+            onConfirm={handleDisconnectAll}
+            onCancel={() => setConfirmDisconnectAll(false)}
+          />
+        )}
 
-          {activeWorkspaceId === null && (
-            <ConnectForm
-              key={formSeed}
-              initial={initial}
-              editing={editingId !== null}
-              connecting={connecting}
-              error={error}
-              groups={groups}
-              globalTheme={settings.theme}
-              onConnect={(request) =>
-                void openSshTab(request, {
-                  showProgress: true,
-                  savedHostId: editingId,
-                })
-              }
-              onSave={handleSaveHost}
-            />
-          )}
-        </div>
-      </main>
+        {notice && (
+          <div className="toast" role="alert" onClick={() => setNotice(null)}>
+            {notice}
+          </div>
+        )}
 
-      {connectVisual && (
-        <ConnectingOverlay visual={connectVisual} onCancel={cancelConnect} />
-      )}
+        {splitPicker && (
+          <SplitPicker
+            candidates={splitCandidates(splitPicker.workspaceId)}
+            direction={splitPicker.direction}
+            x={splitPicker.x}
+            y={splitPicker.y}
+            onPick={(sessionId) => {
+              dockSession(sessionId, {
+                kind: "pane",
+                workspaceId: splitPicker.workspaceId,
+                sessionId: splitPicker.targetSessionId,
+                edge: splitPicker.direction === "row" ? "right" : "bottom",
+              });
+              setSplitPicker(null);
+            }}
+            onClose={() => setSplitPicker(null)}
+          />
+        )}
 
-      {pendingTrust && (
-        <TrustHostDialog
-          trust={pendingTrust}
-          onTrust={handleTrustHost}
-          onCancel={handleTrustCancel}
-        />
-      )}
+        {dragGhost && (
+          <div className="drag-ghost" ref={dragGhostRef} aria-hidden="true">
+            <span className="drag-ghost-title">{dragGhost.title}</span>
+            <span className="drag-ghost-meta">{dragGhost.meta}</span>
+          </div>
+        )}
 
-      {confirmDisconnectAll && (
-        <ConfirmDialog
-          eyebrow="Close all sessions"
-          title="Disconnect all sessions?"
-          description={
-            sessions.length === 1
-              ? "This ends the open session and closes its tab. Scrollback will be lost."
-              : `This ends all ${sessions.length} open sessions and closes every tab. Scrollback will be lost.`
-          }
-          confirmLabel="Disconnect all"
-          onConfirm={handleDisconnectAll}
-          onCancel={() => setConfirmDisconnectAll(false)}
-        />
-      )}
-
-      {notice && (
-        <div className="toast" role="alert" onClick={() => setNotice(null)}>
-          {notice}
-        </div>
-      )}
-
-      {splitPicker && (
-        <SplitPicker
-          candidates={splitCandidates(splitPicker.workspaceId)}
-          direction={splitPicker.direction}
-          x={splitPicker.x}
-          y={splitPicker.y}
-          onPick={(sessionId) => {
-            dockSession(sessionId, {
-              kind: "pane",
-              workspaceId: splitPicker.workspaceId,
-              sessionId: splitPicker.targetSessionId,
-              edge: splitPicker.direction === "row" ? "right" : "bottom",
-            });
-            setSplitPicker(null);
-          }}
-          onClose={() => setSplitPicker(null)}
-        />
-      )}
-
-      {dragGhost && (
-        <div className="drag-ghost" ref={dragGhostRef} aria-hidden="true">
-          <span className="drag-ghost-title">{dragGhost.title}</span>
-          <span className="drag-ghost-meta">{dragGhost.meta}</span>
-        </div>
-      )}
-
-      {settingsOpen && (
-        <SettingsModal
-          settings={settings}
-          onChange={handleSettingsChange}
-          onClose={() => setSettingsOpen(false)}
-        />
-      )}
-    </div>
+        {settingsOpen && (
+          <SettingsModal
+            settings={settings}
+            onChange={handleSettingsChange}
+            onClose={() => setSettingsOpen(false)}
+          />
+        )}
+      </div>
+    </I18nProvider>
   );
 }
 
@@ -1640,10 +1661,10 @@ function copyLabel(base: string, labels: Array<SessionTab | string>): string {
   return `${stem} (${next})`;
 }
 
-function tabMeta(session: SessionTab): string {
+function tabMeta(session: SessionTab, language: Language): string {
   const { info } = session;
   if (info.Kind === "local") {
-    return `${info.User}@local`;
+    return translate(language, "{user}@local", { user: info.User });
   }
   return `${info.User}@${info.Host}:${info.Port}`;
 }
@@ -1689,11 +1710,12 @@ function withWorkspaceLabel(
 function workspaceMeta(
   ids: string[],
   resolve: (id: string) => SessionTab | undefined,
+  language: Language,
 ): string {
   const metas = ids
     .map((id) => {
       const session = resolve(id);
-      return session ? tabMeta(session) : "";
+      return session ? tabMeta(session, language) : "";
     })
     .filter(Boolean);
   if (metas.length <= 1) {
@@ -1750,7 +1772,7 @@ function newWorkspaceID(): string {
 }
 
 function parseTrustError(err: unknown): Pick<PendingTrust, "address" | "fingerprint"> | null {
-  const message = errorMessage(err);
+  const message = errorMessage(err, "");
   if (!message.includes("the host key is not trusted yet")) {
     return null;
   }
@@ -1763,12 +1785,12 @@ function parseTrustError(err: unknown): Pick<PendingTrust, "address" | "fingerpr
   return { address: match[1], fingerprint: match[2] };
 }
 
-function errorMessage(err: unknown): string {
+function errorMessage(err: unknown, fallback: string): string {
   if (err instanceof Error && err.message) {
     return err.message;
   }
   if (typeof err === "string" && err) {
     return err;
   }
-  return "Connection failed. Check the host and your credentials.";
+  return fallback;
 }

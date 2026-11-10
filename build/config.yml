@@ -11,7 +11,7 @@ info:
   description: "A modern open-source SSH terminal" # The application description
   copyright: "(c) 2026, Conch contributors" # Copyright text
   comments: "A modern open-source SSH terminal" # Comments
-  version: "0.2.0" # The application version
+  version: "0.3.0" # The application version
   # cfBundleIconName is deliberately left unset: Conch ships no Assets.car, so the
   # Dock/Finder icon comes from build/darwin/icons.icns (CFBundleIconFile), which
   # build/Taskfile.yml's generate:icons rebuilds from build/appicon.png with iconutil

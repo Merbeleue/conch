@@ -17,6 +17,7 @@ import {
   HIGHLIGHT_RULES,
   type HighlightRuleId,
 } from "../lib/highlight";
+import { LANGUAGES, useI18n, type MessageKey } from "../lib/i18n";
 import { modKey, promptSample } from "../lib/platform";
 import { AppSelect, type AppSelectOption } from "./AppSelect";
 import { ColorPicker } from "./ColorPicker";
@@ -32,13 +33,9 @@ const FONT_OPTIONS: AppSelectOption<FontFamilyId>[] = FONT_FAMILIES.map((font) =
   font: font.stack,
 }));
 
-// Ids are TERM names, and TERM names are what the rows show: quoting a marketing
-// label here would hide the one string the user may need to type by hand.
-const TERMINAL_OPTIONS: AppSelectOption<string>[] = TERMINAL_TYPES.map((type) => ({
-  value: type.id,
-  label: type.label,
-  hint: type.hint,
-}));
+const LANGUAGE_OPTIONS: AppSelectOption<AppSettings["language"]>[] = LANGUAGES.map(
+  (language) => ({ value: language.id, label: language.label }),
+);
 
 interface SettingsModalProps {
   settings: AppSettings;
@@ -46,7 +43,7 @@ interface SettingsModalProps {
   onClose: () => void;
 }
 
-type SettingsSection = "appearance" | "terminal" | "highlight" | "about";
+type SettingsSection = "general" | "appearance" | "terminal" | "highlight" | "about";
 
 /**
  * "plain" is not a rule, it is the text between the coloured words — the same mix
@@ -90,7 +87,8 @@ const PREVIEW_ROWS: PreviewPiece[][] = [
 ];
 
 export function SettingsModal({ settings, onChange, onClose }: SettingsModalProps) {
-  const [section, setSection] = useState<SettingsSection>("appearance");
+  const { t } = useI18n();
+  const [section, setSection] = useState<SettingsSection>("general");
 
   const highlight = settings.highlight;
 
@@ -101,6 +99,15 @@ export function SettingsModal({ settings, onChange, onClose }: SettingsModalProp
   const setHighlightColor = (rule: HighlightRuleId, hex: string) => {
     onChange({ highlight: { ...highlight, colors: { ...highlight.colors, [rule]: hex } } });
   };
+
+  // Ids are TERM names, and TERM names are what the rows show: quoting a
+  // marketing label here would hide the one string the user may need to type by
+  // hand. Only the hint follows the UI language.
+  const terminalOptions: AppSelectOption<string>[] = TERMINAL_TYPES.map((type) => ({
+    value: type.id,
+    label: type.label,
+    hint: t(type.hint as MessageKey),
+  }));
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -131,13 +138,13 @@ export function SettingsModal({ settings, onChange, onClose }: SettingsModalProp
       >
         <header className="settings-head">
           <div>
-            <p className="eyebrow">Preferences</p>
-            <h2 id="settings-title">Settings</h2>
+            <p className="eyebrow">{t("Preferences")}</p>
+            <h2 id="settings-title">{t("Settings")}</h2>
           </div>
           <button
             type="button"
             className="settings-close"
-            aria-label="Close settings"
+            aria-label={t("Close settings")}
             onClick={onClose}
             autoFocus
           >
@@ -149,7 +156,20 @@ export function SettingsModal({ settings, onChange, onClose }: SettingsModalProp
         </header>
 
         <div className="settings-body">
-          <nav className="settings-nav" aria-label="Settings sections">
+          <nav className="settings-nav" aria-label={t("Settings sections")}>
+            <button
+              type="button"
+              className={section === "general" ? "is-active" : undefined}
+              aria-current={section === "general" ? "page" : undefined}
+              onClick={() => setSection("general")}
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <circle cx="12" cy="12" r="8.5" />
+                <line x1="3.5" y1="12" x2="20.5" y2="12" />
+                <path d="M12 3.5c2.2 2.4 3.4 5.3 3.4 8.5S14.2 18.1 12 20.5c-2.2-2.4-3.4-5.3-3.4-8.5S9.8 5.9 12 3.5Z" />
+              </svg>
+              {t("General")}
+            </button>
             <button
               type="button"
               className={section === "appearance" ? "is-active" : undefined}
@@ -163,7 +183,7 @@ export function SettingsModal({ settings, onChange, onClose }: SettingsModalProp
                 <circle cx="14.2" cy="7.2" r="1" fill="currentColor" stroke="none" />
                 <circle cx="7.2" cy="15.3" r="1" fill="currentColor" stroke="none" />
               </svg>
-              Appearance
+              {t("Appearance")}
             </button>
             <button
               type="button"
@@ -176,7 +196,7 @@ export function SettingsModal({ settings, onChange, onClose }: SettingsModalProp
                 <path d="m7 9 2.6 2.6L7 14.2" />
                 <line x1="12.5" y1="14.4" x2="16.5" y2="14.4" />
               </svg>
-              Terminal
+              {t("Terminal")}
             </button>
             <button
               type="button"
@@ -190,7 +210,7 @@ export function SettingsModal({ settings, onChange, onClose }: SettingsModalProp
                 <line x1="4.6" y1="19.4" x2="11.4" y2="19.4" strokeWidth="2.6" />
                 <line x1="14" y1="19.4" x2="19.4" y2="19.4" strokeWidth="2.6" opacity="0.55" />
               </svg>
-              Highlighting
+              {t("Highlighting")}
             </button>
             <button
               type="button"
@@ -203,18 +223,39 @@ export function SettingsModal({ settings, onChange, onClose }: SettingsModalProp
                 <line x1="12" y1="11" x2="12" y2="16.5" />
                 <line x1="12" y1="7.6" x2="12" y2="7.7" />
               </svg>
-              About
+              {t("About")}
             </button>
           </nav>
 
           <section className="settings-panel">
+            {section === "general" && (
+              <>
+                <h3>{t("General")}</h3>
+                <p className="settings-copy">{t("Applies to the whole app immediately")}</p>
+                <div className="settings-form">
+                  <div className="settings-row">
+                    <div className="settings-row-label">
+                      <span>{t("Language")}</span>
+                      <small>{t("Applies to the whole app immediately")}</small>
+                    </div>
+                    <AppSelect
+                      className="settings-select"
+                      label={t("Interface language")}
+                      head={t("Language")}
+                      value={settings.language}
+                      options={LANGUAGE_OPTIONS}
+                      onChange={(language) => onChange({ language })}
+                    />
+                  </div>
+                </div>
+              </>
+            )}
+
             {section === "appearance" && (
               <>
-                <h3>Appearance</h3>
+                <h3>{t("Appearance")}</h3>
                 <p className="settings-copy">
-                  Choose the look for the whole workspace. A host can keep its own
-                  theme in its connection details, and it takes over while that
-                  session is active.
+                  {t("Choose the look for the whole workspace. A host can keep its own theme in its connection details, and it takes over while that session is active.")}
                 </p>
                 <ThemeGrid
                   value={settings.theme}
@@ -225,23 +266,21 @@ export function SettingsModal({ settings, onChange, onClose }: SettingsModalProp
 
             {section === "terminal" && (
               <>
-                <h3>Terminal</h3>
+                <h3>{t("Terminal")}</h3>
                 <p className="settings-copy">
-                  Typography and cursor for every open pane, including split
-                  workspaces and local shells. Changes apply the moment you make
-                  them.
+                  {t("Typography and cursor for every open pane, including split workspaces and local shells. Changes apply the moment you make them.")}
                 </p>
 
                 <div className="settings-form">
                   <div className="settings-row">
                     <div className="settings-row-label">
-                      <span>Font family</span>
-                      <small>Only families installed on this machine are listed</small>
+                      <span>{t("Font family")}</span>
+                      <small>{t("Only families installed on this machine are listed")}</small>
                     </div>
                     <AppSelect
                       className="settings-select"
-                      label="Terminal font family"
-                      head="Terminal font"
+                      label={t("Terminal font family")}
+                      head={t("Terminal font")}
                       value={settings.fontFamily}
                       options={FONT_OPTIONS}
                       onChange={(fontFamily) => onChange({ fontFamily })}
@@ -250,16 +289,19 @@ export function SettingsModal({ settings, onChange, onClose }: SettingsModalProp
 
                   <div className="settings-row">
                     <div className="settings-row-label">
-                      <span>Font size</span>
+                      <span>{t("Font size")}</span>
                       <small>
-                        {MIN_FONT_SIZE}–{MAX_FONT_SIZE} px across the workspace
+                        {t("{min}–{max} px across the workspace", {
+                          min: MIN_FONT_SIZE,
+                          max: MAX_FONT_SIZE,
+                        })}
                       </small>
                     </div>
                     <div className="font-size-control">
                       <button
                         type="button"
                         className="size-step"
-                        aria-label="Decrease font size"
+                        aria-label={t("Decrease font size")}
                         disabled={settings.fontSize <= MIN_FONT_SIZE}
                         onClick={() =>
                           onChange({ fontSize: clampFontSize(settings.fontSize - 1) })
@@ -273,7 +315,7 @@ export function SettingsModal({ settings, onChange, onClose }: SettingsModalProp
                         max={MAX_FONT_SIZE}
                         step={1}
                         value={settings.fontSize}
-                        aria-label="Font size"
+                        aria-label={t("Font size")}
                         onChange={(event) =>
                           onChange({ fontSize: clampFontSize(Number(event.target.value)) })
                         }
@@ -281,7 +323,7 @@ export function SettingsModal({ settings, onChange, onClose }: SettingsModalProp
                       <button
                         type="button"
                         className="size-step"
-                        aria-label="Increase font size"
+                        aria-label={t("Increase font size")}
                         disabled={settings.fontSize >= MAX_FONT_SIZE}
                         onClick={() =>
                           onChange({ fontSize: clampFontSize(settings.fontSize + 1) })
@@ -313,36 +355,31 @@ export function SettingsModal({ settings, onChange, onClose }: SettingsModalProp
                 </div>
 
                 <div className="settings-block">
-                  <span className="settings-block-title">Emulation</span>
+                  <span className="settings-block-title">{t("Emulation")}</span>
                   <div className="settings-row">
                     <div className="settings-row-label">
-                      <span>Terminal type</span>
+                      <span>{t("Terminal type")}</span>
                       <small>
-                        Announced as $TERM when a session opens
+                        {t("Announced as $TERM when a session opens")}
                       </small>
                     </div>
                     <AppSelect
                       className="settings-select"
-                      label="Terminal emulation type"
-                      head="Terminal type"
+                      label={t("Terminal emulation type")}
+                      head={t("Terminal type")}
                       value={settings.terminalType}
-                      options={TERMINAL_OPTIONS}
+                      options={terminalOptions}
                       onChange={(terminalType) => onChange({ terminalType })}
                     />
                   </div>
                   <p className="settings-note">
-                    The host looks this name up in its own terminfo to decide how
-                    much it may draw — step down when a server answers colour or
-                    cursor codes with stray characters. Old switches and routers
-                    usually know vt100 and nothing newer, and a simpler type
-                    cannot add colour a host does not offer. Sessions already open
-                    keep the type they were given.
+                    {t("The host looks this name up in its own terminfo to decide how much it may draw — step down when a server answers colour or cursor codes with stray characters. Old switches and routers usually know vt100 and nothing newer, and a simpler type cannot add colour a host does not offer. Sessions already open keep the type they were given.")}
                   </p>
                 </div>
 
                 <div className="settings-block">
-                  <span className="settings-block-title">Cursor</span>
-                  <div className="cursor-options" role="radiogroup" aria-label="Cursor style">
+                  <span className="settings-block-title">{t("Cursor")}</span>
+                  <div className="cursor-options" role="radiogroup" aria-label={t("Cursor style")}>
                     {CURSOR_STYLES.map((style) => {
                       const selected = settings.cursorStyle === style.id;
                       return (
@@ -357,7 +394,7 @@ export function SettingsModal({ settings, onChange, onClose }: SettingsModalProp
                           <span className="cursor-glyph" aria-hidden="true">
                             <span className={`cursor-shape is-${style.id}`} />
                           </span>
-                          {style.label}
+                          {t(style.label as MessageKey)}
                         </button>
                       );
                     })}
@@ -365,8 +402,8 @@ export function SettingsModal({ settings, onChange, onClose }: SettingsModalProp
 
                   <label className="settings-switch">
                     <span className="settings-switch-copy">
-                      <strong>Blinking cursor</strong>
-                      <small>Pulse the caret while the terminal sits idle</small>
+                      <strong>{t("Blinking cursor")}</strong>
+                      <small>{t("Pulse the caret while the terminal sits idle")}</small>
                     </span>
                     <input
                       type="checkbox"
@@ -382,11 +419,11 @@ export function SettingsModal({ settings, onChange, onClose }: SettingsModalProp
                 </div>
 
                 <div className="settings-block">
-                  <span className="settings-block-title">Mouse</span>
+                  <span className="settings-block-title">{t("Mouse")}</span>
                   <label className="settings-switch">
                     <span className="settings-switch-copy">
-                      <strong>Right-click to paste</strong>
-                      <small>Selecting text copies it, right-click pastes it</small>
+                      <strong>{t("Right-click to paste")}</strong>
+                      <small>{t("Selecting text copies it, right-click pastes it")}</small>
                     </span>
                     <input
                       type="checkbox"
@@ -405,17 +442,15 @@ export function SettingsModal({ settings, onChange, onClose }: SettingsModalProp
 
             {section === "highlight" && (
               <>
-                <h3>Highlighting</h3>
+                <h3>{t("Highlighting")}</h3>
                 <p className="settings-copy">
-                  Colour the words worth scanning for in every terminal — SSH
-                  sessions, splits and local shells alike. Anything that draws its
-                  own screen, like vim or htop, is left exactly as it is.
+                  {t("Colour the words worth scanning for in every terminal — SSH sessions, splits and local shells alike. Anything that draws its own screen, like vim or htop, is left exactly as it is.")}
                 </p>
 
                 <label className="settings-switch">
                   <span className="settings-switch-copy">
-                    <strong>Keyword highlighting</strong>
-                    <small>New output is coloured as it arrives</small>
+                    <strong>{t("Keyword highlighting")}</strong>
+                    <small>{t("New output is coloured as it arrives")}</small>
                   </span>
                   <input
                     type="checkbox"
@@ -434,8 +469,8 @@ export function SettingsModal({ settings, onChange, onClose }: SettingsModalProp
                       key={rule.id}
                     >
                       <div className="settings-row-label">
-                        <span>{rule.label}</span>
-                        <small>{rule.hint}</small>
+                        <span>{t(rule.label as MessageKey)}</span>
+                        <small>{t(rule.hint as MessageKey)}</small>
                       </div>
                       <span
                         className="highlight-sample"
@@ -444,8 +479,8 @@ export function SettingsModal({ settings, onChange, onClose }: SettingsModalProp
                         {rule.sample}
                       </span>
                       <ColorPicker
-                        label={`${rule.label} colour`}
-                        head={rule.label}
+                        label={t("{rule} colour", { rule: t(rule.label as MessageKey) })}
+                        head={t(rule.label as MessageKey)}
                         value={highlight.colors[rule.id]}
                         fallback={DEFAULT_HIGHLIGHT_COLORS[rule.id]}
                         presets={COLOR_PRESETS}
@@ -461,7 +496,7 @@ export function SettingsModal({ settings, onChange, onClose }: SettingsModalProp
                       onChange({ highlight: { ...highlight, colors: { ...DEFAULT_HIGHLIGHT_COLORS } } })
                     }
                   >
-                    Restore default colours
+                    {t("Restore default colours")}
                   </button>
                 </div>
 
@@ -494,8 +529,7 @@ export function SettingsModal({ settings, onChange, onClose }: SettingsModalProp
                 </div>
 
                 <p className="settings-note">
-                  Colours reach the text as it arrives, so a change applies to new
-                  output rather than to the scrollback already drawn.
+                  {t("Colours reach the text as it arrives, so a change applies to new output rather than to the scrollback already drawn.")}
                 </p>
               </>
             )}
@@ -508,17 +542,17 @@ export function SettingsModal({ settings, onChange, onClose }: SettingsModalProp
                   </svg>
                 </span>
                 <h3>Conch</h3>
-                <p className="settings-version">Version 0.2.0</p>
+                <p className="settings-version">{t("Version 0.3.0")}</p>
                 <p className="settings-copy">
-                  A native SSH and local terminal for macOS and Windows.
+                  {t("A native SSH and local terminal for macOS and Windows.")}
                 </p>
                 <div className="settings-keys">
                   <div>
-                    <span>Search saved hosts</span>
+                    <span>{t("Search saved hosts")}</span>
                     <kbd>{modKey}F</kbd>
                   </div>
                   <div>
-                    <span>Open settings</span>
+                    <span>{t("Open settings")}</span>
                     <kbd>{modKey},</kbd>
                   </div>
                 </div>
@@ -528,9 +562,9 @@ export function SettingsModal({ settings, onChange, onClose }: SettingsModalProp
         </div>
 
         <footer className="settings-foot">
-          <span>Changes apply instantly.</span>
+          <span>{t("Changes apply instantly.")}</span>
           <button type="button" className="primary small" onClick={onClose}>
-            Done
+            {t("Done")}
           </button>
         </footer>
       </div>

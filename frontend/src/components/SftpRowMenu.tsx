@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { trashName } from "../lib/platform";
+import { trashLabel } from "../lib/platform";
+import { useI18n } from "../lib/i18n";
 
 export interface RowMenuTarget {
   side: "left" | "right";
@@ -29,10 +30,12 @@ export function SftpRowMenu({
   onDelete,
   onClose,
 }: SftpRowMenuProps) {
+  const { t } = useI18n();
   const ref = useRef<HTMLDivElement | null>(null);
   const [box, setBox] = useState({ x: target.x, y: target.y });
   const multi = target.names.length > 1;
-  const label = multi ? `${target.names.length} items` : target.names[0];
+  const label = multi ? t("{count} items", { count: target.names.length }) : target.names[0];
+  const trash = trashLabel(t);
 
   useLayoutEffect(() => {
     const pad = 12;
@@ -70,7 +73,7 @@ export function SftpRowMenu({
       className="sftp-row-menu"
       style={{ left: box.x, top: box.y }}
       role="menu"
-      aria-label={`Actions for ${label}`}
+      aria-label={t("Actions for {label}", { label })}
     >
       <p className="sftp-row-menu-head" title={target.names.join(", ")}>
         {label}
@@ -81,13 +84,13 @@ export function SftpRowMenu({
         className="sftp-row-menu-item"
         onClick={onRename}
         disabled={multi}
-        title={multi ? "Rename one item at a time" : "Rename this item"}
+        title={multi ? t("Rename one item at a time") : t("Rename this item")}
       >
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
           <path d="M4 20h4.2L19 9.2a2.1 2.1 0 0 0-3-3L5.2 17Z" />
           <path d="M14.6 6.6l2.8 2.8" />
         </svg>
-        <span>Rename</span>
+        <span>{t("Rename")}</span>
         <kbd>↩</kbd>
       </button>
       <button
@@ -95,14 +98,16 @@ export function SftpRowMenu({
         role="menuitem"
         className="sftp-row-menu-item"
         onClick={onChmod}
-        title={`Change permissions${isRemote ? " on the remote host" : ""}`}
+        title={
+          isRemote ? t("Change permissions on the remote host") : t("Change permissions")
+        }
       >
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
           <circle cx="8.6" cy="8.6" r="3.4" />
           <path d="M11.2 11.2 19 19" />
           <path d="M15.8 14l1.6-1.6" />
         </svg>
-        <span>Permissions…</span>
+        <span>{t("Permissions…")}</span>
       </button>
       <div className="sftp-row-menu-sep" aria-hidden="true" />
       <button
@@ -110,7 +115,7 @@ export function SftpRowMenu({
         role="menuitem"
         className="sftp-row-menu-item is-danger"
         onClick={onDelete}
-        title={isRemote ? "Delete permanently on the remote host" : `Move to ${trashName}`}
+        title={isRemote ? t("Delete permanently on the remote host") : t("Move to {trash}", { trash })}
       >
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
           <path d="M4.8 7.4h14.4" />
@@ -118,7 +123,7 @@ export function SftpRowMenu({
           <path d="M6.6 7.4l.9 11.4h9l.9-11.4" />
           <path d="M10.4 10.6v5.2M13.6 10.6v5.2" />
         </svg>
-        <span>{isRemote ? "Delete" : `Move to ${trashName}`}</span>
+        <span>{isRemote ? t("Delete") : t("Move to {trash}", { trash })}</span>
         <kbd>⌫</kbd>
       </button>
     </div>,

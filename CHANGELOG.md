@@ -4,6 +4,36 @@ All notable changes to Conch are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [semantic versioning](https://semver.org/).
 
+## [0.3.0] - 2026-11-10
+
+Download from the [Releases page](https://github.com/Merbeleue/conch/releases/tag/v0.3.0).
+
+### Added
+
+- **Interface language**: Simplified Chinese and English, switchable live in the new
+  Settings → General section — no restart, no reconnect. A first launch follows the
+  system locale and the choice is remembered with the other settings. The English text
+  doubles as the translation key, so a string that was never translated is a compile
+  error rather than a silent gap.
+- **Localized backend messages**, because "the whole app" includes the parts that do not
+  come from React: connection and authentication failures, SFTP errors, transfer results,
+  network hints (timeout, refused, unresolvable name, no route, reset) and system wording
+  such as the local machine's name (This Mac / 这台 Mac, This PC / 此电脑) and the
+  Trash / 回收站 label.
+- Terminal output is never rewritten by the translator, and text only the remote end can
+  produce — an SSH banner, a host-key fingerprint — is displayed exactly as it arrived.
+
+### Changed
+
+- Settings now opens on a General section above Appearance, holding the language choice.
+- The SFTP source picker and both panes rename the local machine in place when the
+  language changes, so switching languages no longer reloads the folders you were viewing.
+
+### Fixed
+
+- The SFTP pane labelled 这台 Mac kept that label after switching to English (and vice
+  versa), because the name was resolved once when the view opened and then cached.
+
 ## [0.2.0] - 2026-11-04
 
 Download from the [Releases page](https://github.com/Merbeleue/conch/releases/tag/v0.2.0).
@@ -133,5 +163,6 @@ Download from the [Releases page](https://github.com/Merbeleue/conch/releases/ta
 - No port forwarding, no `~/.ssh/config` import, no session restore after relaunch,
   and xterm.js is not yet told it is on ConPTY, so Windows line-wrap reflow is guessed.
 
+[0.3.0]: https://github.com/Merbeleue/conch/releases/tag/v0.3.0
 [0.2.0]: https://github.com/Merbeleue/conch/releases/tag/v0.2.0
 [0.1.0]: https://github.com/Merbeleue/conch/releases/tag/v0.1.0

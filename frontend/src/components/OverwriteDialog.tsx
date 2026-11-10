@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { createPortal } from "react-dom";
 import type { SFTPConflict } from "../../bindings/conch/models";
 import { formatBytes } from "../lib/transfer";
+import { useI18n } from "../lib/i18n";
 
 interface OverwriteDialogProps {
   conflicts: SFTPConflict[];
@@ -18,6 +19,8 @@ export function OverwriteDialog({
   onOverwrite,
   onSkip,
 }: OverwriteDialogProps) {
+  const { t } = useI18n();
+
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
@@ -33,8 +36,8 @@ export function OverwriteDialog({
   const extra = conflicts.length - shown.length;
   const heading =
     conflicts.length === 1
-      ? `“${conflicts[0].Name}” already exists`
-      : `${conflicts.length} files already exist`;
+      ? t("“{name}” already exists", { name: conflicts[0].Name })
+      : t("{count} files already exist", { count: conflicts.length });
 
   return createPortal(
     <div
@@ -63,7 +66,15 @@ export function OverwriteDialog({
           <div className="sftp-confirm-heading">
             <h2 id="sftp-confirm-title">{heading}</h2>
             <p id="sftp-confirm-copy">
-              {sourceLabel} → {targetLabel}. Overwrite replaces the existing {conflicts.length === 1 ? "file" : "files"}; skip leaves {conflicts.length === 1 ? "it" : "them"} untouched.
+              {conflicts.length === 1
+                ? t(
+                    "{source} → {target}. Overwrite replaces the existing file; skip leaves it untouched.",
+                    { source: sourceLabel, target: targetLabel },
+                  )
+                : t(
+                    "{source} → {target}. Overwrite replaces the existing files; skip leaves them untouched.",
+                    { source: sourceLabel, target: targetLabel },
+                  )}
             </p>
           </div>
         </header>
@@ -77,20 +88,22 @@ export function OverwriteDialog({
               <span className="sftp-confirm-size">
                 {formatBytes(conflict.Size)}
                 {conflict.ExistingSize !== conflict.Size && (
-                  <em>replaces {formatBytes(conflict.ExistingSize)}</em>
+                  <em>{t("replaces {size}", { size: formatBytes(conflict.ExistingSize) })}</em>
                 )}
               </span>
             </li>
           ))}
-          {extra > 0 && <li className="sftp-confirm-more">and {extra} more</li>}
+          {extra > 0 && (
+            <li className="sftp-confirm-more">{t("and {count} more", { count: extra })}</li>
+          )}
         </ul>
 
         <footer className="sftp-confirm-actions">
           <button type="button" className="ghost" onClick={onSkip}>
-            Skip existing
+            {t("Skip existing")}
           </button>
           <button type="button" className="sftp-confirm-primary" onClick={onOverwrite} autoFocus>
-            Overwrite
+            {t("Overwrite")}
           </button>
         </footer>
       </section>

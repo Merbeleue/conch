@@ -227,7 +227,7 @@ func (s *SFTPService) List(req SFTPListRequest) (*SFTPListing, error) {
 	}
 	infos, err := endpoint.readDir(dir)
 	if err != nil {
-		return nil, fmt.Errorf("read %s: %w", dir, err)
+		return nil, fmt.Errorf(tr("read %s: %w", "读取 %s 失败：%w"), dir, err)
 	}
 	entries := make([]SFTPEntry, 0, len(infos))
 	for _, info := range infos {
@@ -294,7 +294,7 @@ func (s *SFTPService) Conflicts(req SFTPConflictRequest) ([]SFTPConflict, error)
 	}
 	existing, err := target.readDir(targetDir)
 	if err != nil {
-		return nil, fmt.Errorf("read target folder: %w", err)
+		return nil, fmt.Errorf(tr("read target folder: %w", "读取目标文件夹失败：%w"), err)
 	}
 	foldCase := target.kind == "local"
 	byName := make(map[string]os.FileInfo, len(existing))
@@ -364,7 +364,7 @@ func (s *SFTPService) Transfer(req SFTPTransferRequest) (*SFTPTransferResult, er
 		names = append(names, name)
 	}
 	if len(names) == 0 {
-		return nil, errors.New("select at least one file or folder")
+		return nil, errors.New(tr("select at least one file or folder", "请至少选择一个文件或文件夹"))
 	}
 
 	transferID := strings.TrimSpace(req.TransferID)
@@ -375,7 +375,7 @@ func (s *SFTPService) Transfer(req SFTPTransferRequest) (*SFTPTransferResult, er
 	s.mu.Lock()
 	if _, exists := s.transfers[transferID]; exists {
 		s.mu.Unlock()
-		return nil, errors.New("this transfer is already in progress")
+		return nil, errors.New(tr("this transfer is already in progress", "该传输已在进行中"))
 	}
 	s.transfers[transferID] = job
 	s.mu.Unlock()
@@ -506,7 +506,7 @@ func (s *SFTPService) Transfer(req SFTPTransferRequest) (*SFTPTransferResult, er
 			_ = target.remove(item.Dst)
 			if errors.Is(copyErr, errTransferCancelled) {
 				result.Canceled = true
-				result.Files = append(result.Files, SFTPTransferFile{Name: item.Name, Error: "canceled"})
+				result.Files = append(result.Files, SFTPTransferFile{Name: item.Name, Error: tr("canceled", "已取消")})
 				break
 			}
 			result.Failed++
@@ -552,7 +552,7 @@ func (s *SFTPService) Stat(req SFTPStatRequest) (*SFTPEntry, error) {
 	}
 	name := strings.TrimSpace(req.Name)
 	if !validTransferName(name) {
-		return nil, errors.New("select one file or folder first")
+		return nil, errors.New(tr("select one file or folder first", "请先选择一个文件或文件夹"))
 	}
 	info, err := endpoint.lstat(endpoint.join(dir, name))
 	if err != nil {
@@ -589,10 +589,10 @@ func (s *SFTPService) Rename(req SFTPRenameRequest) error {
 	from := strings.TrimSpace(req.From)
 	to := strings.TrimSpace(req.To)
 	if !validTransferName(from) {
-		return errors.New("the item to rename is not valid")
+		return errors.New(tr("the item to rename is not valid", "要重命名的项目无效"))
 	}
 	if !validTransferName(to) {
-		return errors.New("a name cannot be empty or contain /")
+		return errors.New(tr("a name cannot be empty or contain /", "名称不能为空或包含 /"))
 	}
 	if endpoint.kind == "local" {
 		if problem := platformNameProblem(to); problem != "" {
@@ -608,7 +608,7 @@ func (s *SFTPService) Rename(req SFTPRenameRequest) error {
 		return fmt.Errorf("%s: %w", from, err)
 	}
 	if _, err := endpoint.lstat(dst); err == nil {
-		return fmt.Errorf("%s already exists in this folder", to)
+		return fmt.Errorf(tr("%s already exists in this folder", "%s 已存在于该文件夹中"), to)
 	}
 	return endpoint.rename(src, dst)
 }
@@ -634,7 +634,7 @@ func (s *SFTPService) Delete(req SFTPDeleteRequest) error {
 		names = append(names, name)
 	}
 	if len(names) == 0 {
-		return errors.New("select at least one file or folder")
+		return errors.New(tr("select at least one file or folder", "请至少选择一个文件或文件夹"))
 	}
 
 	problems := make([]string, 0)
@@ -682,7 +682,7 @@ func (s *SFTPService) Chmod(req SFTPChmodRequest) error {
 		names = append(names, name)
 	}
 	if len(names) == 0 {
-		return errors.New("select at least one file or folder")
+		return errors.New(tr("select at least one file or folder", "请至少选择一个文件或文件夹"))
 	}
 
 	problems := make([]string, 0)
@@ -718,11 +718,11 @@ func (s *SFTPService) endpoint(src SFTPSource) (*sftpEndpoint, error) {
 		return &sftpEndpoint{kind: "local", label: localSourceLabel()}, nil
 	}
 	if kind != "remote" {
-		return nil, fmt.Errorf("unknown source type %q", src.Kind)
+		return nil, fmt.Errorf(tr("unknown source type %q", "未知的来源类型 %q"), src.Kind)
 	}
 	sess := s.ssh.lookup(strings.TrimSpace(src.SessionID))
 	if sess == nil {
-		return nil, errors.New("the remote session is no longer connected")
+		return nil, errors.New(tr("the remote session is no longer connected", "远程会话已断开"))
 	}
 	client, err := s.ssh.sftpFor(sess)
 	if err != nil {
@@ -750,7 +750,7 @@ func (e *sftpEndpoint) home() (string, error) {
 	}
 	home, err := e.client.Getwd()
 	if err != nil {
-		return "", fmt.Errorf("find the remote home folder: %w", err)
+		return "", fmt.Errorf(tr("find the remote home folder: %w", "查找远程主目录失败：%w"), err)
 	}
 	return path.Clean(home), nil
 }
@@ -772,10 +772,10 @@ func (e *sftpEndpoint) resolveDir(requested string) (string, error) {
 	value = e.clean(value)
 	info, err := e.stat(value)
 	if err != nil {
-		return "", fmt.Errorf("%s: %w", value, err)
+		return "", fmt.Errorf(tr("%s: %w", "%s：%w"), value, err)
 	}
 	if !info.IsDir() {
-		return "", fmt.Errorf("%s is not a folder", value)
+		return "", fmt.Errorf(tr("%s is not a folder", "%s 不是文件夹"), value)
 	}
 	return value, nil
 }
@@ -950,7 +950,7 @@ func collectTransfer(
 ) ([]copyItem, []SFTPTransferFile, int64, int, error) {
 	used, err := existingNames(target, targetDir)
 	if err != nil {
-		return nil, nil, 0, 0, fmt.Errorf("read target folder: %w", err)
+		return nil, nil, 0, 0, fmt.Errorf(tr("read target folder: %w", "读取目标文件夹失败：%w"), err)
 	}
 
 	items := make([]copyItem, 0, len(names))
@@ -977,7 +977,7 @@ func collectTransfer(
 				destName = uniqueDestinationName(used, name, false, target.kind == "local")
 			case sameEndpointFile(source, target, info, existing, source.join(sourceDir, name), target.join(targetDir, name)):
 				// Never truncate a file by copying it over itself.
-				failures = append(failures, SFTPTransferFile{Name: name, Error: "the source and destination are the same file"})
+				failures = append(failures, SFTPTransferFile{Name: name, Error: tr("the source and destination are the same file", "源文件和目标文件相同")})
 				continue
 			}
 		}
@@ -1003,7 +1003,7 @@ func collectTransfer(
 			totalBytes += info.Size()
 			fileCount++
 		default:
-			failures = append(failures, SFTPTransferFile{Name: name, Error: "not a regular file"})
+			failures = append(failures, SFTPTransferFile{Name: name, Error: tr("not a regular file", "不是常规文件")})
 		}
 	}
 	return items, failures, totalBytes, fileCount, nil
@@ -1056,7 +1056,7 @@ func collectTree(
 			totalBytes += info.Size()
 			fileCount++
 		default:
-			failures = append(failures, SFTPTransferFile{Name: display, Error: "symlinks and special files are skipped"})
+			failures = append(failures, SFTPTransferFile{Name: display, Error: tr("symlinks and special files are skipped", "已跳过符号链接和特殊文件")})
 		}
 	}
 	return items, failures, totalBytes, fileCount, nil

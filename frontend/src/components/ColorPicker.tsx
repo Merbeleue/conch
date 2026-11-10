@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { useI18n } from "../lib/i18n";
 
 interface ColorPickerProps {
   /** Current colour as `#rrggbb`. */
@@ -51,6 +52,7 @@ export function ColorPicker({
 }: ColorPickerProps) {
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState(value);
+  const { t } = useI18n();
   const [position, setPosition] = useState<Position | null>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -140,7 +142,7 @@ export function ColorPicker({
         aria-haspopup="dialog"
         aria-expanded={open}
         aria-controls={open ? panelId : undefined}
-        aria-label={`${label}, currently ${value}`}
+        aria-label={t("{label}, currently {value}", { label, value })}
         title={value}
       />
 
@@ -159,7 +161,7 @@ export function ColorPicker({
           >
             <div className="color-panel-head">{head}</div>
 
-            <div className="color-grid" role="listbox" aria-label={`${head} presets`}>
+            <div className="color-grid" role="listbox" aria-label={t("{head} presets", { head })}>
               {presets.map((preset) => {
                 const selected = preset.toLowerCase() === value.toLowerCase();
                 return (
@@ -190,7 +192,7 @@ export function ColorPicker({
                 value={draft}
                 spellCheck={false}
                 autoComplete="off"
-                aria-label={`${head} colour, six digit hex`}
+                aria-label={t("{head} colour, six digit hex", { head })}
                 onChange={(event) => {
                   const next = event.target.value;
                   setDraft(next);
@@ -228,7 +230,7 @@ export function ColorPicker({
                   setDraft(fallback);
                 }}
               >
-                Reset
+                {t("Reset")}
               </button>
             </div>
           </div>,

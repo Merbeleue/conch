@@ -1,6 +1,8 @@
 // The same bundle ships to macOS and Windows, and the webview tells us which
 // one it is: WKWebView reports "Mac OS X", WebView2 reports "Windows NT".
 // Anything the user sees that is specific to the host OS goes through here.
+import type { Translate } from "./i18n";
+
 const userAgent = typeof navigator === "undefined" ? "" : navigator.userAgent;
 
 export const isWindows = /Windows NT|Win64|i686/i.test(userAgent);
@@ -14,12 +16,18 @@ export const modKey = isWindows ? "Ctrl" : "⌘";
 export const shiftModKey = isWindows ? "Shift+Ctrl" : "⇧⌘";
 
 /** What the local side of the file manager is called. */
-export const localMachineLabel = isWindows ? "This PC" : "This Mac";
+export function machineLabel(t: Translate): string {
+  return t(isWindows ? "This PC" : "This Mac");
+}
 
 /** Where a deleted local file goes, and the app you restore it from. */
-export const trashName = isWindows ? "Recycle Bin" : "Trash";
+export function trashLabel(t: Translate): string {
+  return t(isWindows ? "Recycle Bin" : "Trash");
+}
 
-export const fileManagerLabel = isWindows ? "File Explorer" : "Finder";
+export function fileManager(t: Translate): string {
+  return t(isWindows ? "File Explorer" : "Finder");
+}
 
 /**
  * The prompt drawn in front of the settings font preview, in the style of this

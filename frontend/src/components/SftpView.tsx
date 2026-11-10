@@ -20,12 +20,13 @@ import { TransferPanel } from "./TransferPanel";
 import { ConfirmDialog } from "./ConfirmDialog";
 import {
   childPath,
-  fileManagerLabel,
+  fileManager,
   isWindows,
-  localMachineLabel,
-  trashName,
+  machineLabel,
+  trashLabel,
   windowsNameProblem,
 } from "../lib/platform";
+import { tt, useI18n, type Translate } from "../lib/i18n";
 import { sourceAddress, sourceKey } from "../lib/sftp";
 import {
   firstTransferError,
@@ -82,14 +83,16 @@ interface DeleteTarget {
 
 type Side = TransferSide;
 
-const LOCAL_SOURCE: SFTPSource = {
-  Kind: "local",
-  SessionID: "",
-  Label: localMachineLabel,
-  Host: "localhost",
-  User: "",
-  Port: 0,
-};
+function localSource(t: Translate): SFTPSource {
+  return {
+    Kind: "local",
+    SessionID: "",
+    Label: machineLabel(t),
+    Host: "localhost",
+    User: "",
+    Port: 0,
+  };
+}
 
 function blankPane(path = ""): PaneView {
   return { listing: null, loading: false, error: "", path };
@@ -102,7 +105,7 @@ function errorText(err: unknown): string {
   if (typeof err === "string" && err.trim()) {
     return err.trim();
   }
-  return "Something went wrong.";
+  return tt("Something went wrong.");
 }
 
 function newTransferID(): string {
@@ -122,6 +125,13 @@ function memoryKey(sessionId: string, source: SFTPSource): string {
 }
 
 export function SftpView({ sessionId, label, onExit }: SftpViewProps) {
+  const { t } = useI18n();
+  const local = useMemo(() => localSource(t), [t]);
+  // The local machine's name is the only part of a source that the language
+  // controls. Keep it in a ref so a language switch can rename the panes
+  // without booting them again.
+  const localRef = useRef(local);
+  localRef.current = local;
   const fallbackRight = useMemo<SFTPSource>(
     () => ({
       Kind: "remote",
@@ -134,8 +144,8 @@ export function SftpView({ sessionId, label, onExit }: SftpViewProps) {
     [sessionId, label],
   );
 
-  const [sources, setSources] = useState<SFTPSource[]>([LOCAL_SOURCE, fallbackRight]);
-  const [leftSource, setLeftSource] = useState<SFTPSource>(LOCAL_SOURCE);
+  const [sources, setSources] = useState<SFTPSource[]>(() => [local, fallbackRight]);
+  const [leftSource, setLeftSource] = useState<SFTPSource>(local);
   const [rightSource, setRightSource] = useState<SFTPSource>(fallbackRight);
   const [panes, setPanes] = useState<Record<Side, PaneView>>({
     left: blankPane(),
@@ -238,7 +248,9 @@ export function SftpView({ sessionId, label, onExit }: SftpViewProps) {
           return;
         }
         if (!listing) {
-          throw new Error("The folder could not be read.");
+          // tt, not t: this message is raised inside a callback that should not
+          // be rebuilt every time the language changes.
+          throw new Error(tt("The folder could not be read."));
         }
         remember(source, listing.Path);
         setPanes((current) => ({
@@ -302,11 +314,14 @@ export function SftpView({ sessionId, label, onExit }: SftpViewProps) {
   useEffect(() => {
     let active = true;
     const boot = async () => {
-      let list: SFTPSource[] = [LOCAL_SOURCE, fallbackRight];
+      const home = localRef.current;
+      let list: SFTPSource[] = [home, fallbackRight];
       try {
         const loaded = await SFTPService.Sources();
         if (loaded && loaded.length > 0) {
-          list = loaded;
+          list = loaded.map((source) =>
+            source.Kind === "local" ? { ...source, Label: home.Label } : source,
+          );
         }
       } catch {
         // Fall back to the session this view was opened for.
@@ -315,13 +330,13 @@ export function SftpView({ sessionId, label, onExit }: SftpViewProps) {
         return;
       }
       setSources(list);
-      const local = list.find((source) => source.Kind === "local") ?? LOCAL_SOURCE;
+      const localEntry = list.find((source) => source.Kind === "local") ?? home;
       const remote =
         list.find((source) => source.Kind === "remote" && source.SessionID === sessionId) ??
         fallbackRight;
-      setLeftSource(local);
+      setLeftSource(localEntry);
       setRightSource(remote);
-      void loadPane("left", local, recall(local), true);
+      void loadPane("left", localEntry, recall(localEntry), true);
       void loadPane("right", remote, recall(remote), true);
     };
     void boot();
@@ -329,6 +344,16 @@ export function SftpView({ sessionId, label, onExit }: SftpViewProps) {
       active = false;
     };
   }, [sessionId, fallbackRight, loadPane, recall]);
+
+  // Renaming the machine after a language switch is a label change, not a
+  // navigation: the folders stay where they are.
+  useEffect(() => {
+    setSources((current) =>
+      current.map((source) => (source.Kind === "local" ? { ...source, Label: local.Label } : source)),
+    );
+    setLeftSource((current) => (current.Kind === "local" ? local : current));
+    setRightSource((current) => (current.Kind === "local" ? local : current));
+  }, [local]);
 
   // Pick up hosts that connected since this view opened.
   useEffect(() => {
@@ -338,9 +363,13 @@ export function SftpView({ sessionId, label, onExit }: SftpViewProps) {
         if (!list) {
           return;
         }
-        setSources(list);
+        const home = localRef.current;
+        const named = list.map((source) =>
+          source.Kind === "local" ? { ...source, Label: home.Label } : source,
+        );
+        setSources(named);
         setLeftSource((current) => {
-          const next = list.find((source) => sourceKey(source) === sourceKey(current));
+          const next = named.find((source) => sourceKey(source) === sourceKey(current));
           return next && next.Label !== current.Label ? next : current;
         });
         setRightSource((current) => {
@@ -362,17 +391,19 @@ export function SftpView({ sessionId, label, onExit }: SftpViewProps) {
         setRightGone(true);
       }
       if (info.SessionID === leftSourceRef.current.SessionID) {
-        setLeftSource(LOCAL_SOURCE);
+        setLeftSource(local);
         setPanes((current) => ({
           ...current,
           left: { listing: null, loading: true, error: "", path: "" },
         }));
         setSelections((current) => ({ ...current, left: [] }));
-        void loadPane("left", LOCAL_SOURCE, recall(LOCAL_SOURCE), true);
-        notify(`The source connection ended. Showing ${localMachineLabel}.`);
+        void loadPane("left", local, recall(local), true);
+        notify(
+          t("The source connection ended. Showing {label}.", { label: machineLabel(t) }),
+        );
       }
     });
-  }, [sessionId, loadPane, recall]);
+  }, [sessionId, local, loadPane, recall, t]);
 
   useEffect(() => {
     return Events.On(SftpTransfer, (event) => {
@@ -412,11 +443,11 @@ export function SftpView({ sessionId, label, onExit }: SftpViewProps) {
         return;
       }
       if (transferInFlight(transferRef.current)) {
-        notify("A transfer is already in progress.", true);
+        notify(t("A transfer is already in progress."), true);
         return;
       }
       if (from === "right" && rightGone) {
-        notify("This SSH connection has ended.", true);
+        notify(t("This SSH connection has ended."), true);
         return;
       }
       const pane = panesRef.current;
@@ -426,7 +457,7 @@ export function SftpView({ sessionId, label, onExit }: SftpViewProps) {
       const to: Side = from === "left" ? "right" : "left";
       const targetPane = pane[to];
       if (!sourcePane.listing || !targetPane.listing) {
-        notify("Open a folder on both sides before copying.", true);
+        notify(t("Open a folder on both sides before copying."), true);
         return;
       }
 
@@ -464,7 +495,7 @@ export function SftpView({ sessionId, label, onExit }: SftpViewProps) {
         if (current && current.id === id) {
           let next: TransferState;
           if (!result) {
-            next = { ...current, phase: "error", error: "The transfer did not start." };
+            next = { ...current, phase: "error", error: t("The transfer did not start.") };
           } else if (result.Canceled) {
             next = {
               ...current,
@@ -482,7 +513,7 @@ export function SftpView({ sessionId, label, onExit }: SftpViewProps) {
               failed: result.Failed,
               bytes: result.Bytes,
               totalBytes: result.TotalBytes || current.totalBytes,
-              error: firstTransferError(result) || "Some items could not be copied.",
+              error: firstTransferError(result) || t("Some items could not be copied."),
             };
           } else {
             next = {
@@ -515,7 +546,7 @@ export function SftpView({ sessionId, label, onExit }: SftpViewProps) {
         }
       }
     },
-    [loadPane, rightGone],
+    [loadPane, rightGone, t],
   );
 
   const startTransfer = useCallback(
@@ -524,11 +555,11 @@ export function SftpView({ sessionId, label, onExit }: SftpViewProps) {
         return;
       }
       if (transferInFlight(transferRef.current) || preflightRef.current) {
-        notify("A transfer is already in progress.", true);
+        notify(t("A transfer is already in progress."), true);
         return;
       }
       if (from === "right" && rightGone) {
-        notify("This SSH connection has ended.", true);
+        notify(t("This SSH connection has ended."), true);
         return;
       }
       const pane = panesRef.current;
@@ -538,7 +569,7 @@ export function SftpView({ sessionId, label, onExit }: SftpViewProps) {
       const to: Side = from === "left" ? "right" : "left";
       const targetPane = pane[to];
       if (!sourcePane.listing || !targetPane.listing) {
-        notify("Open a folder on both sides before copying.", true);
+        notify(t("Open a folder on both sides before copying."), true);
         return;
       }
 
@@ -573,7 +604,7 @@ export function SftpView({ sessionId, label, onExit }: SftpViewProps) {
       }
       void runTransfer(from, names, false);
     },
-    [rightGone, runTransfer],
+    [rightGone, runTransfer, t],
   );
 
   const resolveOverwrite = (overwrite: boolean) => {
@@ -589,7 +620,7 @@ export function SftpView({ sessionId, label, onExit }: SftpViewProps) {
     const skipped = new Set(prompt.conflicts.map((conflict) => conflict.Name));
     const remaining = prompt.names.filter((name) => !skipped.has(name));
     if (remaining.length === 0) {
-      notify("All selected files already exist, so nothing was copied.");
+      notify(t("All selected files already exist, so nothing was copied."));
       return;
     }
     void runTransfer(prompt.from, remaining, false);
@@ -770,11 +801,14 @@ export function SftpView({ sessionId, label, onExit }: SftpViewProps) {
       return;
     }
     if (target.includes("/") || target.includes("\\")) {
-      setRenaming({ ...current, error: "A name cannot contain / or \\" });
+      setRenaming({ ...current, error: t("A name cannot contain / or \\") });
       return;
     }
     if (isWindows && sourceOf(current.side).Kind === "local" && windowsNameProblem(target)) {
-      setRenaming({ ...current, error: `“${target}” is not a valid Windows name` });
+      setRenaming({
+        ...current,
+        error: t("“{name}” is not a valid Windows name", { name: target }),
+      });
       return;
     }
     const source = sourceOf(current.side);
@@ -785,13 +819,13 @@ export function SftpView({ sessionId, label, onExit }: SftpViewProps) {
       await SFTPService.Rename({ Source: source, Dir: dir, From: current.from, To: target });
       setRenaming(null);
       void reloadKeeping(current.side, [target]);
-      notify(`Renamed to “${target}”.`);
+      notify(t("Renamed to “{name}”.", { name: target }));
     } catch (err) {
       setRenaming({ ...current, busy: false, error: errorText(err) });
     } finally {
       renameInFlight.current = false;
     }
-  }, [renaming, reloadKeeping]);
+  }, [renaming, reloadKeeping, t]);
 
   const beginChmod = async (side: Side, names: string[]) => {
     setMenu(null);
@@ -835,14 +869,14 @@ export function SftpView({ sessionId, label, onExit }: SftpViewProps) {
         void reloadKeeping(target.side, target.names);
         notify(
           target.names.length === 1
-            ? `Permissions set on “${target.names[0]}”.`
-            : `Permissions set on ${target.names.length} items.`,
+            ? t("Permissions set on “{name}”.", { name: target.names[0] })
+            : t("Permissions set on {count} items.", { count: target.names.length }),
         );
       } catch (err) {
         setChmodTarget({ ...target, perm, busy: false, error: errorText(err) });
       }
     },
-    [chmodTarget, reloadKeeping],
+    [chmodTarget, reloadKeeping, t],
   );
 
   const beginDelete = (side: Side, names: string[]) => {
@@ -860,6 +894,7 @@ export function SftpView({ sessionId, label, onExit }: SftpViewProps) {
     }
     const source = sourceOf(target.side);
     const dir = panesRef.current[target.side].listing?.Path ?? "";
+    const trash = trashLabel(t);
     setDeleteTarget(null);
     try {
       await SFTPService.Delete({ Source: source, Dir: dir, Names: target.names });
@@ -867,16 +902,19 @@ export function SftpView({ sessionId, label, onExit }: SftpViewProps) {
       notify(
         source.Kind === "local"
           ? target.names.length === 1
-            ? `“${target.names[0]}” moved to the ${trashName}.`
-            : `${target.names.length} items moved to the ${trashName}.`
+            ? t("“{name}” moved to the {trash}.", { name: target.names[0], trash })
+            : t("{count} items moved to the {trash}.", {
+                count: target.names.length,
+                trash,
+              })
           : target.names.length === 1
-            ? `“${target.names[0]}” deleted.`
-            : `${target.names.length} items deleted.`,
+            ? t("“{name}” deleted.", { name: target.names[0] })
+            : t("{count} items deleted.", { count: target.names.length }),
       );
     } catch (err) {
       notify(errorText(err), true);
     }
-  }, [deleteTarget, reloadKeeping]);
+  }, [deleteTarget, reloadKeeping, t]);
 
   const beginDrag = (side: Side, entry: SFTPEntry, event: ReactDragEvent) => {
     if (busy) {
@@ -996,7 +1034,9 @@ export function SftpView({ sessionId, label, onExit }: SftpViewProps) {
               <span className="sftp-source-name">{source.Label}</span>
             )}
             <span className="sftp-source-meta">
-              {gone ? "Connection ended" : address || (source.Kind === "local" ? "Local filesystem" : "")}
+              {gone
+                ? t("Connection ended")
+                : address || (source.Kind === "local" ? t("Local filesystem") : "")}
             </span>
           </div>
           <div className="sftp-pane-tools">
@@ -1005,8 +1045,8 @@ export function SftpView({ sessionId, label, onExit }: SftpViewProps) {
               className="sftp-tool"
               onClick={() => pane.listing && beginChmod(side, selections[side])}
               disabled={selections[side].length === 0 || gone}
-              title="Change permissions of the selected items"
-              aria-label="Change permissions"
+              title={t("Change permissions of the selected items")}
+              aria-label={t("Change permissions")}
             >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="8.6" cy="8.6" r="3.4" />
@@ -1024,8 +1064,8 @@ export function SftpView({ sessionId, label, onExit }: SftpViewProps) {
                 }
               }}
               disabled={selections[side].length !== 1 || gone}
-              title="Rename the selected item"
-              aria-label="Rename"
+              title={t("Rename the selected item")}
+              aria-label={t("Rename")}
             >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M4 20h4.2L19 9.2a2.1 2.1 0 0 0-3-3L5.2 17Z" />
@@ -1037,8 +1077,12 @@ export function SftpView({ sessionId, label, onExit }: SftpViewProps) {
               className="sftp-tool is-danger"
               onClick={() => beginDelete(side, selections[side])}
               disabled={selections[side].length === 0 || gone}
-              title={source.Kind === "local" ? `Move the selected items to the ${trashName}` : "Delete the selected items"}
-              aria-label="Delete selected items"
+              title={
+                source.Kind === "local"
+                  ? t("Move the selected items to the {trash}", { trash: trashLabel(t) })
+                  : t("Delete the selected items")
+              }
+              aria-label={t("Delete selected items")}
             >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M4.8 7.4h14.4" />
@@ -1051,8 +1095,8 @@ export function SftpView({ sessionId, label, onExit }: SftpViewProps) {
               className="sftp-tool"
               onClick={() => pane.listing?.Parent && navigate(side, pane.listing.Parent)}
               disabled={!pane.listing?.Parent || gone}
-              title="Parent folder"
-              aria-label="Parent folder"
+              title={t("Parent folder")}
+              aria-label={t("Parent folder")}
             >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M12 19V5.5" />
@@ -1064,8 +1108,8 @@ export function SftpView({ sessionId, label, onExit }: SftpViewProps) {
               className="sftp-tool"
               onClick={() => pane.listing?.Home && navigate(side, pane.listing.Home)}
               disabled={!pane.listing?.Home || gone}
-              title="Home folder"
-              aria-label="Home folder"
+              title={t("Home folder")}
+              aria-label={t("Home folder")}
             >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
                 <path d="m4 10.6 8-6.4 8 6.4" />
@@ -1077,8 +1121,8 @@ export function SftpView({ sessionId, label, onExit }: SftpViewProps) {
               className="sftp-tool"
               onClick={() => pane.listing && navigate(side, pane.listing.Path)}
               disabled={!pane.listing || gone || pane.loading}
-              title="Refresh"
-              aria-label="Refresh folder"
+              title={t("Refresh")}
+              aria-label={t("Refresh folder")}
             >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M19.5 12a7.5 7.5 0 1 1-2.2-5.3" />
@@ -1104,8 +1148,12 @@ export function SftpView({ sessionId, label, onExit }: SftpViewProps) {
             spellCheck={false}
             autoCapitalize="off"
             autoCorrect="off"
-            placeholder={side === "left" ? "Type a local path and press Enter" : "Type a remote path and press Enter"}
-            aria-label="Folder path"
+            placeholder={
+              side === "left"
+                ? t("Type a local path and press Enter")
+                : t("Type a remote path and press Enter")
+            }
+            aria-label={t("Folder path")}
             disabled={gone}
             onChange={(event) =>
               setPanes((current) => ({
@@ -1123,8 +1171,8 @@ export function SftpView({ sessionId, label, onExit }: SftpViewProps) {
             }}
           />
           {pane.path !== (pane.listing?.Path ?? "") && (
-            <button type="submit" className="sftp-go" title="Open this path">
-              Go
+            <button type="submit" className="sftp-go" title={t("Open this path")}>
+              {t("Go")}
             </button>
           )}
         </form>
@@ -1141,21 +1189,23 @@ export function SftpView({ sessionId, label, onExit }: SftpViewProps) {
         )}
         {gone && (
           <div className="sftp-banner is-warning" role="status">
-            <span>This SSH session has ended. Press Esc to go back to the terminal and reconnect.</span>
+            <span>
+              {t("This SSH session has ended. Press Esc to go back to the terminal and reconnect.")}
+            </span>
           </div>
         )}
 
         <div className="sftp-columns" aria-hidden="true">
-          <span>Name</span>
-          <span className="sftp-col-size">Size</span>
-          <span className="sftp-col-date">Modified</span>
+          <span>{t("Name")}</span>
+          <span className="sftp-col-size">{t("Size")}</span>
+          <span className="sftp-col-date">{t("Modified")}</span>
         </div>
 
         <div
           className={`sftp-list${pane.loading ? " is-loading" : ""}`}
           role="listbox"
           tabIndex={0}
-          aria-label={`${source.Label} files`}
+          aria-label={t("{label} files", { label: source.Label })}
           aria-multiselectable="true"
           onKeyDown={(event) => onListKeyDown(side, event)}
           onDragOver={(event) => dragOverPane(side, event)}
@@ -1194,7 +1244,9 @@ export function SftpView({ sessionId, label, onExit }: SftpViewProps) {
                 onDragEnd={endDrag}
                 onClick={(event) => selectRow(side, index, event)}
                 onDoubleClick={() => openEntry(side, entry)}
-                title={`${entry.Name} · right-click for rename, permissions and delete`}
+                title={t("{name} · right-click for rename, permissions and delete", {
+                  name: entry.Name,
+                })}
               >
                 <span className="sftp-row-icon" aria-hidden="true">
                   {entry.IsDir ? (
@@ -1216,7 +1268,7 @@ export function SftpView({ sessionId, label, onExit }: SftpViewProps) {
                         value={renameState.value}
                         spellCheck={false}
                         autoFocus
-                        aria-label="New name"
+                        aria-label={t("New name")}
                         onChange={(event) =>
                           setRenaming({
                             ...renameState,
@@ -1258,7 +1310,7 @@ export function SftpView({ sessionId, label, onExit }: SftpViewProps) {
                   ) : (
                     <>
                       {entry.Name}
-                      {entry.IsLink && <span className="sftp-link-badge">link</span>}
+                      {entry.IsLink && <span className="sftp-link-badge">{t("link")}</span>}
                     </>
                   )}
                 </span>
@@ -1271,7 +1323,7 @@ export function SftpView({ sessionId, label, onExit }: SftpViewProps) {
           {pane.loading && (
             <div className="sftp-state">
               <span className="sftp-spinner" aria-hidden="true" />
-              <span>Loading…</span>
+              <span>{t("Loading…")}</span>
             </div>
           )}
 
@@ -1282,13 +1334,17 @@ export function SftpView({ sessionId, label, onExit }: SftpViewProps) {
                   <path d="M3.5 7.2A1.7 1.7 0 0 1 5.2 5.5h4l2 2.2h7.6a1.7 1.7 0 0 1 1.7 1.7v7.4a1.7 1.7 0 0 1-1.7 1.7H5.2a1.7 1.7 0 0 1-1.7-1.7Z" />
                 </svg>
               </span>
-              <span>This folder is empty</span>
+              <span>{t("This folder is empty")}</span>
             </div>
           )}
 
           {dropSide === side && dragSource && (
             <div className="sftp-drop-overlay">
-              <span>Copy {dragSource.names.length} {dragSource.names.length === 1 ? "item" : "items"} here</span>
+              <span>
+                {dragSource.names.length === 1
+                  ? t("Copy {count} item here", { count: dragSource.names.length })
+                  : t("Copy {count} items here", { count: dragSource.names.length })}
+              </span>
             </div>
           )}
         </div>
@@ -1296,11 +1352,16 @@ export function SftpView({ sessionId, label, onExit }: SftpViewProps) {
         <footer className="sftp-pane-foot">
           <span>
             {selected.size > 0
-              ? `${selected.size} selected · ${formatBytes(selectedBytes)}`
-              : `${entries.length} ${entries.length === 1 ? "item" : "items"}`}
+              ? t("{count} selected · {size}", {
+                  count: selected.size,
+                  size: formatBytes(selectedBytes),
+                })
+              : entries.length === 1
+                ? t("{count} item", { count: entries.length })
+                : t("{count} items", { count: entries.length })}
           </span>
           <span className="sftp-foot-hint">
-            {side === "left" ? "Right-click a file for more" : "Double-click to open"}
+            {side === "left" ? t("Right-click a file for more") : t("Double-click to open")}
           </span>
         </footer>
       </section>
@@ -1318,14 +1379,14 @@ export function SftpView({ sessionId, label, onExit }: SftpViewProps) {
         <div className="sftp-viewbar-text">
           <span className="sftp-viewbar-title">SFTP</span>
           <span className="sftp-viewbar-sub">
-            Two-way transfer · right-click a file to rename, change permissions or delete
+            {t("Two-way transfer · right-click a file to rename, change permissions or delete")}
           </span>
         </div>
         <button type="button" className="sftp-exit" onClick={onExit}>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <path d="M9.5 6.5 15 12l-5.5 5.5" />
           </svg>
-          <span>Terminal</span>
+          <span>{t("Terminal")}</span>
           <kbd>Esc</kbd>
         </button>
       </header>
@@ -1342,10 +1403,13 @@ export function SftpView({ sessionId, label, onExit }: SftpViewProps) {
             disabled={selections.left.length === 0 || busy || checking || !panes.right.listing}
             title={
               selections.left.length > 0
-                ? `Copy ${selections.left.length} to ${rightSource.Label}`
-                : "Select files on the left to copy them right"
+                ? t("Copy {count} to {label}", {
+                    count: selections.left.length,
+                    label: rightSource.Label,
+                  })
+                : t("Select files on the left to copy them right")
             }
-            aria-label="Copy selected items to the right"
+            aria-label={t("Copy selected items to the right")}
           >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
               <path d="M5 12h13.5" />
@@ -1362,10 +1426,13 @@ export function SftpView({ sessionId, label, onExit }: SftpViewProps) {
             disabled={selections.right.length === 0 || busy || checking || rightGone || !panes.left.listing}
             title={
               selections.right.length > 0
-                ? `Copy ${selections.right.length} to ${leftSource.Label}`
-                : "Select files on the right to copy them left"
+                ? t("Copy {count} to {label}", {
+                    count: selections.right.length,
+                    label: leftSource.Label,
+                  })
+                : t("Select files on the right to copy them left")
             }
-            aria-label="Copy selected items to the left"
+            aria-label={t("Copy selected items to the left")}
           >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
               <path d="M19 12H5.5" />
@@ -1426,22 +1493,41 @@ export function SftpView({ sessionId, label, onExit }: SftpViewProps) {
       {deleteTarget && (
         <ConfirmDialog
           icon="trash"
-          eyebrow={sourceOf(deleteTarget.side).Kind === "local" ? `Move to ${trashName}` : "Delete on remote host"}
+          eyebrow={
+            sourceOf(deleteTarget.side).Kind === "local"
+              ? t("Move to {trash}", { trash: trashLabel(t) })
+              : t("Delete on remote host")
+          }
           title={
             sourceOf(deleteTarget.side).Kind === "local"
               ? deleteTarget.names.length === 1
-                ? `Move “${deleteTarget.names[0]}” to ${trashName}?`
-                : `Move ${deleteTarget.names.length} items to ${trashName}?`
+                ? t("Move “{name}” to {trash}?", {
+                    name: deleteTarget.names[0],
+                    trash: trashLabel(t),
+                  })
+                : t("Move {count} items to {trash}?", {
+                    count: deleteTarget.names.length,
+                    trash: trashLabel(t),
+                  })
               : deleteTarget.names.length === 1
-                ? `Delete “${deleteTarget.names[0]}”?`
-                : `Delete ${deleteTarget.names.length} items?`
+                ? t("Delete “{name}”?", { name: deleteTarget.names[0] })
+                : t("Delete {count} items?", { count: deleteTarget.names.length })
           }
           description={
             sourceOf(deleteTarget.side).Kind === "local"
-              ? `Local items move to the ${trashName}, so you can bring them back from ${fileManagerLabel}.`
-              : "This deletes the items on the remote host. Folders are removed with everything inside them, and there is no Trash on the server."
+              ? t("Local items move to the {trash}, so you can bring them back from {manager}.", {
+                  trash: trashLabel(t),
+                  manager: fileManager(t),
+                })
+              : t(
+                  "This deletes the items on the remote host. Folders are removed with everything inside them, and there is no Trash on the server.",
+                )
           }
-          confirmLabel={sourceOf(deleteTarget.side).Kind === "local" ? `Move to ${trashName}` : "Delete"}
+          confirmLabel={
+            sourceOf(deleteTarget.side).Kind === "local"
+              ? t("Move to {trash}", { trash: trashLabel(t) })
+              : t("Delete")
+          }
           onConfirm={() => void confirmDelete()}
           onCancel={() => setDeleteTarget(null)}
         />

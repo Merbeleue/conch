@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import type { SplitCandidate, SplitDirection } from "../types";
+import { useI18n } from "../lib/i18n";
 
 interface SplitPickerProps {
   /** Open sessions that are not in this workspace yet. */
@@ -22,6 +23,7 @@ const CHROME = 92;
  * picker.
  */
 export function SplitPicker({ candidates, direction, x, y, onPick, onClose }: SplitPickerProps) {
+  const { t } = useI18n();
   const ref = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -54,11 +56,15 @@ export function SplitPicker({ candidates, direction, x, y, onPick, onClose }: Sp
       ref={ref}
       className="context-menu split-picker"
       role="menu"
-      aria-label={`Choose a session to ${direction === "row" ? "split right" : "split down"}`}
+      aria-label={
+        direction === "row"
+          ? t("Choose a session to split right")
+          : t("Choose a session to split down")
+      }
       style={{ left, top, width: WIDTH }}
     >
       <div className="context-menu-heading">
-        <span>{direction === "row" ? "Split right with" : "Split down with"}</span>
+        <span>{direction === "row" ? t("Split right with") : t("Split down with")}</span>
       </div>
       <div className="context-menu-scroll">
         {candidates.map((candidate) => (
@@ -86,7 +92,7 @@ export function SplitPicker({ candidates, direction, x, y, onPick, onClose }: Sp
         ))}
       </div>
       <p className="split-picker-note">
-        The session moves into this tab; its connection stays open.
+        {t("The session moves into this tab; its connection stays open.")}
       </p>
     </div>,
     document.body,

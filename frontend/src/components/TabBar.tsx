@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import type { PaneEdge, SplitDirection } from "../types";
 import { modKey, shiftModKey } from "../lib/platform";
+import { useI18n } from "../lib/i18n";
 
 export interface TabItem {
   id: string;
@@ -73,6 +74,7 @@ export function TabBar({
   onSplit,
   onDragTab,
 }: TabBarProps) {
+  const { t } = useI18n();
   const [menu, setMenu] = useState<MenuState | null>(null);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameDraft, setRenameDraft] = useState("");
@@ -164,8 +166,8 @@ export function TabBar({
         type="button"
         className={sidebarHidden ? "sidebar-toggle is-collapsed" : "sidebar-toggle"}
         onClick={onToggleSidebar}
-        title={sidebarHidden ? "Show saved hosts" : "Hide saved hosts"}
-        aria-label={sidebarHidden ? "Show sidebar" : "Hide sidebar"}
+        title={sidebarHidden ? t("Show saved hosts") : t("Hide saved hosts")}
+        aria-label={sidebarHidden ? t("Show sidebar") : t("Hide sidebar")}
         aria-pressed={!sidebarHidden}
       >
         <span className="sidebar-toggle-mark" aria-hidden="true">
@@ -173,10 +175,10 @@ export function TabBar({
             <path d="M12 3.2a8.8 8.8 0 1 0 8.8 8.8c0-3.4-2.4-5.9-5.8-5.9a4.9 4.9 0 0 0-4.9 4.9 2.9 2.9 0 0 0 2.9 2.9 1.8 1.8 0 0 0 1.8-1.8" />
           </svg>
         </span>
-        {sidebarHidden && <span className="sidebar-toggle-label">Hosts</span>}
+        {sidebarHidden && <span className="sidebar-toggle-label">{t("Hosts")}</span>}
       </button>
 
-      <div className="tab-strip" role="tablist" aria-label="Open sessions">
+      <div className="tab-strip" role="tablist" aria-label={t("Open sessions")}>
         {tabs.map((tab) => {
           const active = tab.id === activeId;
           const renaming = renamingId === tab.id;
@@ -204,8 +206,13 @@ export function TabBar({
               data-tab-id={tab.id}
               title={
                 multiPane
-                  ? `${tab.label} — ${tab.paneCount} panes. Drag onto a pane to rearrange`
-                  : `${tab.meta}${tab.exited ? " — connection ended" : ""} — drag onto a pane to split`
+                  ? t("{label} — {count} panes. Drag onto a pane to rearrange", {
+                      label: tab.label,
+                      count: tab.paneCount,
+                    })
+                  : `${tab.meta}${tab.exited ? t(" — connection ended") : ""}${t(
+                      " — drag onto a pane to split",
+                    )}`
               }
               onClick={() => onSelect(tab.id)}
               onPointerDown={(event) => {
@@ -233,7 +240,7 @@ export function TabBar({
                   <input
                     className="term-tab-rename"
                     value={renameDraft}
-                    aria-label={multiPane ? "Workspace name" : "Tab name"}
+                    aria-label={multiPane ? t("Workspace name") : t("Tab name")}
                     autoFocus
                     spellCheck={false}
                     onChange={(event) => setRenameDraft(event.target.value)}
@@ -276,8 +283,8 @@ export function TabBar({
               {tab.paneCount > 1 && (
                 <span
                   className="term-tab-panes"
-                  title={`${tab.paneCount} panes`}
-                  aria-label={`${tab.paneCount} panes`}
+                  title={t("{count} panes", { count: tab.paneCount })}
+                  aria-label={t("{count} panes", { count: tab.paneCount })}
                 >
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
                     <rect x="4" y="5" width="16" height="14" rx="2" />
@@ -289,8 +296,8 @@ export function TabBar({
               <button
                 type="button"
                 className="term-tab-close"
-                aria-label={`Close ${tab.label}`}
-                title="Close tab"
+                aria-label={t("Close {label}", { label: tab.label })}
+                title={t("Close tab")}
                 onClick={(event) => {
                   event.stopPropagation();
                   onClose(tab.id);
@@ -306,7 +313,13 @@ export function TabBar({
         })}
       </div>
 
-      <button type="button" className="tab-new" onClick={onNew} title="New connection" aria-label="New connection">
+      <button
+        type="button"
+        className="tab-new"
+        onClick={onNew}
+        title={t("New connection")}
+        aria-label={t("New connection")}
+      >
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
           <line x1="12" y1="5" x2="12" y2="19" />
           <line x1="5" y1="12" x2="19" y2="12" />
@@ -323,11 +336,11 @@ export function TabBar({
           title={
             !sftpAvailable
               ? sftpTarget
-                ? "The SFTP manager needs a live SSH session"
-                : "Connect to a server to browse files"
+                ? t("The SFTP manager needs a live SSH session")
+                : t("Connect to a server to browse files")
               : sftpActive
-                ? "Hide the SFTP manager and show this tab's terminal"
-                : `Open the SFTP file manager for ${sftpTarget}`
+                ? t("Hide the SFTP manager and show this tab's terminal")
+                : t("Open the SFTP file manager for {target}", { target: sftpTarget })
           }
         >
           <span className="sftp-trigger-glyph" aria-hidden="true">
@@ -348,10 +361,10 @@ export function TabBar({
           aria-pressed={broadcast}
           title={
             broadcast
-              ? "Keystrokes are going to every open session"
+              ? t("Keystrokes are going to every open session")
               : broadcastAvailable
-                ? "Send keystrokes to every open session"
-                : "Connect at least two sessions to broadcast input"
+                ? t("Send keystrokes to every open session")
+                : t("Connect at least two sessions to broadcast input")
           }
         >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" aria-hidden="true">
@@ -359,7 +372,7 @@ export function TabBar({
             <path d="M7.9 7.9a5.8 5.8 0 0 0 0 8.2M16.1 7.9a5.8 5.8 0 0 1 0 8.2" />
             <path d="M4.8 4.8a10.2 10.2 0 0 0 0 14.4M19.2 4.8a10.2 10.2 0 0 1 0 14.4" />
           </svg>
-          {broadcast ? "Broadcasting" : "Broadcast"}
+          {broadcast ? t("Broadcasting") : t("Broadcast")}
           {broadcast && <span className="broadcast-pulse" aria-hidden="true" />}
         </button>
         <button
@@ -367,21 +380,21 @@ export function TabBar({
           className="ghost"
           onClick={onClear}
           disabled={!activeId}
-          title="Clear this terminal"
+          title={t("Clear this terminal")}
         >
-          Clear
+          {t("Clear")}
         </button>
         <button
           type="button"
           className="ghost danger disconnect-all"
           onClick={onDisconnectAll}
-          title="Disconnect all sessions"
+          title={t("Disconnect all sessions")}
         >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <path d="M12 3v9" />
             <path d="M6.4 6.6a8 8 0 1 0 11.2 0" />
           </svg>
-          Disconnect all
+          {t("Disconnect all")}
         </button>
       </div>
 
@@ -410,7 +423,7 @@ export function TabBar({
                   <rect x="4" y="4.5" width="16" height="15" rx="2.2" />
                   <line x1="12" y1="4.5" x2="12" y2="19.5" />
                 </svg>
-                Split right
+                {t("Split right")}
                 <span className="context-menu-hint">{modKey}D</span>
               </button>
               <button
@@ -427,7 +440,7 @@ export function TabBar({
                   <rect x="4" y="4.5" width="16" height="15" rx="2.2" />
                   <line x1="4" y1="12" x2="20" y2="12" />
                 </svg>
-                Split down
+                {t("Split down")}
                 <span className="context-menu-hint">{shiftModKey}D</span>
               </button>
               <div className="context-menu-sep" role="separator" />
@@ -444,7 +457,7 @@ export function TabBar({
                   <rect x="9" y="9" width="11" height="11" rx="2" />
                   <path d="M15 5.5A1.5 1.5 0 0 0 13.5 4H6a2 2 0 0 0-2 2v7.5A1.5 1.5 0 0 0 5.5 15" />
                 </svg>
-                Duplicate connection
+                {t("Duplicate connection")}
               </button>
               <div className="context-menu-sep" role="separator" />
             </>
@@ -458,7 +471,7 @@ export function TabBar({
               <path d="m4 16.5-.8 3.6a.6.6 0 0 0 .7.7l3.6-.8L19 8.5a2.1 2.1 0 0 0-3-3L4 16.5Z" />
               <path d="m14.5 6.5 3 3" />
             </svg>
-            {menuMultiPane ? "Rename workspace" : "Rename tab"}
+            {menuMultiPane ? t("Rename workspace") : t("Rename tab")}
           </button>
           <div className="context-menu-sep" role="separator" />
           <button
@@ -475,7 +488,7 @@ export function TabBar({
               <line x1="6" y1="6" x2="18" y2="18" />
               <line x1="18" y1="6" x2="6" y2="18" />
             </svg>
-            Close tab
+            {t("Close tab")}
           </button>
         </div>
       )}

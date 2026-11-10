@@ -1,4 +1,5 @@
 import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { useI18n } from "../lib/i18n";
 
 interface GroupComboboxProps {
   groups: string[];
@@ -13,6 +14,7 @@ interface GroupOption {
 }
 
 export function GroupCombobox({ groups, value, onChange }: GroupComboboxProps) {
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const [filter, setFilter] = useState("");
   const [highlight, setHighlight] = useState(0);
@@ -40,7 +42,7 @@ export function GroupCombobox({ groups, value, onChange }: GroupComboboxProps) {
     // Focusing the field should reveal every group, not just ones matching the
     // current value; filtering starts once the user types.
     if (!query) {
-      list.push({ value: "", label: "No group", kind: "none" });
+      list.push({ value: "", label: t("No group"), kind: "none" });
     }
     for (const name of groups) {
       if (!query || name.toLowerCase().includes(query)) {
@@ -48,7 +50,7 @@ export function GroupCombobox({ groups, value, onChange }: GroupComboboxProps) {
       }
     }
     return list;
-  }, [groups, query]);
+  }, [groups, query, t]);
 
   const chosen = value.trim();
   const exact = chosen !== "" && groups.some((name) => name.toLowerCase() === chosen.toLowerCase());
@@ -82,13 +84,13 @@ export function GroupCombobox({ groups, value, onChange }: GroupComboboxProps) {
         ref={inputRef}
         className="group-combo-input"
         role="combobox"
-        aria-label="Group"
+        aria-label={t("Group")}
         aria-expanded={open}
         aria-controls={listId}
         aria-autocomplete="list"
         aria-activedescendant={open && options.length > 0 ? `${listId}-${safeHighlight}` : undefined}
         value={value}
-        placeholder="e.g. Production"
+        placeholder={t("e.g. Production")}
         autoComplete="off"
         spellCheck={false}
         onChange={(event) => {
@@ -155,7 +157,7 @@ export function GroupCombobox({ groups, value, onChange }: GroupComboboxProps) {
       </svg>
 
       {open && (
-        <div className="group-combo-menu" role="listbox" id={listId} aria-label="Groups">
+        <div className="group-combo-menu" role="listbox" id={listId} aria-label={t("Groups")}>
           {options.map((option, index) => {
             const selected = option.value === chosen;
             return (
@@ -197,7 +199,7 @@ export function GroupCombobox({ groups, value, onChange }: GroupComboboxProps) {
                 <line x1="6" y1="12" x2="18" y2="12" />
               </svg>
               <span>
-                New group <strong>{chosen}</strong> will be created on save.
+                {t("New group {name} will be created on save.", { name: chosen })}
               </span>
             </div>
           )}

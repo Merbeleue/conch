@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { useI18n } from "../lib/i18n";
 
 interface ConfirmDialogProps {
   eyebrow: string;
@@ -20,6 +21,7 @@ export function ConfirmDialog({
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
+  const { t } = useI18n();
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
@@ -69,7 +71,7 @@ export function ConfirmDialog({
         </p>
         <div className="trust-actions">
           <button type="button" className="ghost" onClick={onCancel} autoFocus>
-            Cancel
+            {t("Cancel")}
           </button>
           <button type="button" className="danger-button" onClick={onConfirm}>
             {confirmLabel}

@@ -39,6 +39,14 @@ export function Resize(sessionID: string, cols: number, rows: number): $Cancella
     return $Call.ByID(884796119, sessionID, cols, rows);
 }
 
+/**
+ * SetLanguage switches every backend-generated message. The Settings dialog
+ * calls it when the language picker changes so errors match the UI.
+ */
+export function SetLanguage(lang: string): $CancellablePromise<void> {
+    return $Call.ByID(3555264827, lang);
+}
+
 export function Write(sessionID: string, data: string): $CancellablePromise<void> {
     return $Call.ByID(1772814050, sessionID, data);
 }

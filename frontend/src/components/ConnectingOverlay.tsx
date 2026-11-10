@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { useI18n } from "../lib/i18n";
 
 export interface ConnectionVisual {
   token: number;
@@ -16,11 +17,12 @@ interface ConnectingOverlayProps {
 }
 
 export function ConnectingOverlay({ visual, onCancel }: ConnectingOverlayProps) {
+  const { t } = useI18n();
   const done = visual.phase === "done";
-  const title = visual.label || visual.host || "Local shell";
+  const title = visual.label || visual.host || t("Local shell");
   const target =
     visual.kind === "local"
-      ? "Your login shell on this Mac"
+      ? t("Your login shell on this Mac")
       : visual.user
         ? `${visual.user}@${visual.host}:${visual.port}`
         : `${visual.host}:${visual.port}`;
@@ -76,7 +78,7 @@ export function ConnectingOverlay({ visual, onCancel }: ConnectingOverlayProps) 
         </div>
 
         <p className="eyebrow">
-          {done ? "Session ready" : visual.kind === "local" ? "Starting shell" : "Connecting"}
+          {done ? t("Session ready") : visual.kind === "local" ? t("Starting shell") : t("Connecting")}
         </p>
         <h2>{title}</h2>
         <p className="connect-target">{target}</p>
@@ -86,10 +88,10 @@ export function ConnectingOverlay({ visual, onCancel }: ConnectingOverlayProps) 
         </div>
         <p className="connect-note">
           {done
-            ? "Opening terminal"
+            ? t("Opening terminal")
             : visual.kind === "local"
-              ? "Spawning your login shell"
-              : "Negotiating a secure channel"}
+              ? t("Spawning your login shell")
+              : t("Negotiating a secure channel")}
         </p>
 
         {!done && (
@@ -98,7 +100,7 @@ export function ConnectingOverlay({ visual, onCancel }: ConnectingOverlayProps) 
               <line x1="6" y1="6" x2="18" y2="18" />
               <line x1="18" y1="6" x2="6" y2="18" />
             </svg>
-            Cancel connection
+            {t("Cancel connection")}
           </button>
         )}
       </div>

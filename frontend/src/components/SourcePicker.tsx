@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { SFTPSource } from "../../bindings/conch/models";
 import { sourceAddress, sourceKey } from "../lib/sftp";
+import { useI18n } from "../lib/i18n";
 
 interface SourcePickerProps {
   sources: SFTPSource[];
@@ -37,6 +38,7 @@ export function SourceGlyph({ source }: { source: SFTPSource }) {
 
 /** App-styled replacement for the native source <select>. */
 export function SourcePicker({ sources, value, onChange }: SourcePickerProps) {
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
   const [position, setPosition] = useState<MenuPosition | null>(null);
@@ -140,7 +142,7 @@ export function SourcePicker({ sources, value, onChange }: SourcePickerProps) {
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-controls={open ? listId : undefined}
-        title="Choose where this pane browses"
+        title={t("Choose where this pane browses")}
       >
         <span className="sftp-source-trigger-label">{value.Label}</span>
         <svg className="sftp-source-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -155,11 +157,11 @@ export function SourcePicker({ sources, value, onChange }: SourcePickerProps) {
             ref={menuRef}
             id={listId}
             role="listbox"
-            aria-label="Browse files from"
+            aria-label={t("Browse files from")}
             className={`sftp-source-menu${position.above ? " is-above" : ""}`}
             style={{ left: position.left, top: position.top, width: position.width }}
           >
-            <div className="sftp-source-menu-head">Browse from</div>
+            <div className="sftp-source-menu-head">{t("Browse from")}</div>
             {sources.map((source, index) => {
               const key = sourceKey(source);
               const isActive = key === selectedKey;
@@ -187,7 +189,7 @@ export function SourcePicker({ sources, value, onChange }: SourcePickerProps) {
                   <span className="sftp-source-option-text">
                     <span className="sftp-source-option-label">{source.Label}</span>
                     <span className="sftp-source-option-meta">
-                      {address || (source.Kind === "local" ? "Local filesystem" : "")}
+                      {address || (source.Kind === "local" ? t("Local filesystem") : "")}
                     </span>
                   </span>
                   {isActive && (

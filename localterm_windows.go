@@ -19,10 +19,13 @@ import (
 // ConPTY speaks UTF-8 on both pipes, so xterm.js needs no transcoding.
 func startPlatformShell(argv []string, dir string, cols int, rows int, termType string) (localTerminal, error) {
 	if len(argv) == 0 {
-		return nil, errors.New("no local shell to start")
+		return nil, errors.New(tr("no local shell to start", "没有可启动的本地 shell"))
 	}
 	if !conpty.IsConPtyAvailable() {
-		return nil, errors.New("ConPTY is unavailable: this Windows build needs Windows 10 1809 or newer")
+		return nil, errors.New(tr(
+			"ConPTY is unavailable: this Windows build needs Windows 10 1809 or newer",
+			"ConPTY 不可用：此 Windows 版本需要 Windows 10 1809 或更高版本",
+		))
 	}
 	cpty, err := conpty.Start(
 		commandLine(argv),
@@ -31,7 +34,7 @@ func startPlatformShell(argv []string, dir string, cols int, rows int, termType 
 		conpty.ConPtyEnv(envWithTerm(termType)),
 	)
 	if err != nil {
-		return nil, fmt.Errorf("start local shell: %w", err)
+		return nil, fmt.Errorf(tr("start local shell: %w", "启动本地 shell 失败：%w"), err)
 	}
 	return &windowsTerminal{cpty: cpty}, nil
 }

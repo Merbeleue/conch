@@ -6,6 +6,7 @@ import {
   type HighlightSettings,
 } from "./highlight";
 import { DEFAULT_THEME, isThemeId, type ThemeId } from "./themes";
+import { detectLanguage, type Language } from "./i18n";
 
 const STORAGE_KEY = "conch.settings.v1";
 
@@ -208,6 +209,8 @@ export const DEFAULT_TERMINAL_TYPE = TERMINAL_TYPES[0].id;
 
 /** App-wide preferences. The stored object is kept open so new keys can join. */
 export interface AppSettings {
+  /** UI language; every visible string follows it. */
+  language: Language;
   theme: ThemeId;
   fontFamily: FontFamilyId;
   fontSize: number;
@@ -282,9 +285,15 @@ function normalizeHighlight(value: unknown): HighlightSettings {
   };
 }
 
+function isLanguage(value: unknown): value is Language {
+  return value === "zh-CN" || value === "en";
+}
+
 export function loadSettings(): AppSettings {
   const stored = readStored();
   return {
+    // A fresh install follows the system locale; an explicit choice sticks.
+    language: isLanguage(stored.language) ? stored.language : detectLanguage(),
     theme: isThemeId(stored.theme) ? stored.theme : DEFAULT_THEME,
     fontFamily: isFontFamily(stored.fontFamily) ? stored.fontFamily : DEFAULT_FONT.id,
     fontSize:

@@ -7,6 +7,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { THEMES, themeFor, type ThemeDefinition, type ThemeId } from "../lib/themes";
+import { translate, useI18n } from "../lib/i18n";
 
 type PreviewStyle = CSSProperties & {
   "--preview-bg": string;
@@ -55,6 +56,7 @@ interface PopoverPosition {
 
 /** Visual popover used in host details, replacing the style-blind native select. */
 export function ThemeSelect({ value, globalTheme, onChange }: ThemeSelectProps) {
+  const { language, t } = useI18n();
   const inherited = themeFor(globalTheme);
   const shown = value ? themeFor(value) : inherited;
   const [open, setOpen] = useState(false);
@@ -137,6 +139,8 @@ export function ThemeSelect({ value, globalTheme, onChange }: ThemeSelectProps) 
 
   const darkThemes = THEMES.filter((theme) => theme.scheme === "dark");
   const lightThemes = THEMES.filter((theme) => theme.scheme === "light");
+  const shownTagline = translate(language, shown.tagline);
+  const inheritedTagline = translate(language, inherited.tagline);
 
   return (
     <div className="theme-picker">
@@ -146,16 +150,16 @@ export function ThemeSelect({ value, globalTheme, onChange }: ThemeSelectProps) 
         className="theme-trigger"
         aria-haspopup="listbox"
         aria-expanded={open}
-        aria-label="Host theme"
+        aria-label={t("Host theme")}
         onClick={() => setOpen((current) => !current)}
       >
         <ThemeMini theme={shown} compact />
         <span className="theme-trigger-text">
           <span className="theme-trigger-name">
-            {value ? shown.name : `Follow global · ${inherited.name}`}
+            {value ? shown.name : t("Follow global · {name}", { name: inherited.name })}
           </span>
           <span className="theme-trigger-hint">
-            {value ? shown.tagline : "Uses the workspace theme"}
+            {value ? shownTagline : t("Uses the workspace theme")}
           </span>
         </span>
         <svg
@@ -178,7 +182,7 @@ export function ThemeSelect({ value, globalTheme, onChange }: ThemeSelectProps) 
             ref={popoverRef}
             className="theme-popover"
             role="dialog"
-            aria-label="Choose host theme"
+            aria-label={t("Choose host theme")}
             style={{
               left: position?.left ?? 0,
               top: position?.top ?? 0,
@@ -186,11 +190,17 @@ export function ThemeSelect({ value, globalTheme, onChange }: ThemeSelectProps) 
             }}
           >
             <div className="theme-popover-head">
-              <span>Host theme</span>
-              <span className="theme-popover-global">Global · {inherited.name}</span>
+              <span>{t("Host theme")}</span>
+              <span className="theme-popover-global">
+                {t("Global · {name}", { name: inherited.name })}
+              </span>
             </div>
 
-            <div className="theme-popover-list" role="listbox" aria-label="Host theme options">
+            <div
+              className="theme-popover-list"
+              role="listbox"
+              aria-label={t("Host theme options")}
+            >
               <button
                 type="button"
                 role="option"
@@ -200,22 +210,22 @@ export function ThemeSelect({ value, globalTheme, onChange }: ThemeSelectProps) 
               >
                 <ThemeMini theme={inherited} compact />
                 <span className="theme-follow-text">
-                  <strong>Follow global</strong>
+                  <strong>{t("Follow global")}</strong>
                   <span>
-                    {inherited.name} — {inherited.tagline}
+                    {inherited.name} — {inheritedTagline}
                   </span>
                 </span>
                 {!value && <CheckMark />}
               </button>
 
               <ThemeSection
-                title="Dark"
+                title={t("Dark")}
                 themes={darkThemes}
                 value={value}
                 onChoose={choose}
               />
               <ThemeSection
-                title="Daylight"
+                title={t("Daylight")}
                 themes={lightThemes}
                 value={value}
                 onChoose={choose}
@@ -236,20 +246,22 @@ interface ThemeSectionProps {
 }
 
 function ThemeSection({ title, themes, value, onChoose }: ThemeSectionProps) {
+  const { language } = useI18n();
   return (
     <div className="theme-section">
       <span className="theme-section-title">{title}</span>
       <div className="theme-section-grid">
         {themes.map((theme) => {
           const selected = value === theme.id;
+          const tagline = translate(language, theme.tagline);
           return (
             <button
               key={theme.id}
               type="button"
               role="option"
               aria-selected={selected}
-              aria-label={`${theme.name} — ${theme.tagline}`}
-              title={theme.tagline}
+              aria-label={`${theme.name} — ${tagline}`}
+              title={tagline}
               className={selected ? "theme-option is-selected" : "theme-option"}
               onClick={() => onChoose(theme.id)}
             >
@@ -273,17 +285,19 @@ interface ThemeGridProps {
 
 /** Rich preview cards shown in Settings. */
 export function ThemeGrid({ value, onChange }: ThemeGridProps) {
+  const { language, t } = useI18n();
   return (
-    <div className="theme-grid" role="radiogroup" aria-label="Global theme">
+    <div className="theme-grid" role="radiogroup" aria-label={t("Global theme")}>
       {THEMES.map((theme) => {
         const selected = value === theme.id;
+        const tagline = translate(language, theme.tagline);
         return (
           <button
             key={theme.id}
             type="button"
             role="radio"
             aria-checked={selected}
-            aria-label={`${theme.name} — ${theme.tagline}`}
+            aria-label={`${theme.name} — ${tagline}`}
             className={selected ? "theme-card is-selected" : "theme-card"}
             onClick={() => onChange(theme.id)}
           >
@@ -310,7 +324,7 @@ export function ThemeGrid({ value, onChange }: ThemeGridProps) {
                 {theme.name}
                 {selected && <CheckMark />}
               </span>
-              <span className="theme-card-blurb">{theme.tagline}</span>
+              <span className="theme-card-blurb">{tagline}</span>
             </span>
           </button>
         );

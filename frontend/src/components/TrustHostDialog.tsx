@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import type { ConnectRequest, OpenSessionOptions } from "../types";
+import { useI18n } from "../lib/i18n";
 
 export interface PendingTrust {
   address: string;
@@ -16,6 +17,7 @@ interface TrustHostDialogProps {
 }
 
 export function TrustHostDialog({ trust, onTrust, onCancel }: TrustHostDialogProps) {
+  const { t } = useI18n();
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
@@ -43,23 +45,25 @@ export function TrustHostDialog({ trust, onTrust, onCancel }: TrustHostDialogPro
             <path d="M9.5 12.2 11.5 14l3.5-3.4" />
           </svg>
         </span>
-        <p className="eyebrow">Unverified host</p>
-        <h3 id="trust-title">Trust this host key?</h3>
+        <p className="eyebrow">{t("Unverified host")}</p>
+        <h3 id="trust-title">{t("Trust this host key?")}</h3>
         <p className="trust-copy">
-          The authenticity of <strong>{trust.address}</strong> can&apos;t be established yet.
-          Verify this fingerprint on the server before trusting it.
+          {t(
+            "The authenticity of {address} can't be established yet. Verify this fingerprint on the server before trusting it.",
+            { address: trust.address },
+          )}
         </p>
         <code className="trust-fingerprint">{trust.fingerprint}</code>
         <p className="trust-note">
-          Trusting saves the key to <code>~/.ssh/known_hosts</code>, so later connections are
-          verified automatically.
+          {t("Trusting saves the key to")} <code>~/.ssh/known_hosts</code>
+          {t(", so later connections are verified automatically.")}
         </p>
         <div className="trust-actions">
           <button type="button" className="ghost" onClick={onCancel}>
-            Cancel
+            {t("Cancel")}
           </button>
           <button type="button" className="primary small" onClick={onTrust}>
-            Trust &amp; connect
+            {t("Trust & connect")}
           </button>
         </div>
       </div>

@@ -16,7 +16,7 @@ import (
 // startPlatformShell opens a real PTY and runs the shell attached to it.
 func startPlatformShell(argv []string, dir string, cols int, rows int, termType string) (localTerminal, error) {
 	if len(argv) == 0 {
-		return nil, errors.New("no local shell to start")
+		return nil, errors.New(tr("no local shell to start", "没有可启动的本地 shell"))
 	}
 	cmd := exec.Command(argv[0], argv[1:]...)
 	cmd.Env = envWithTerm(termType)
@@ -26,7 +26,7 @@ func startPlatformShell(argv []string, dir string, cols int, rows int, termType 
 
 	ptmx, err := pty.StartWithSize(cmd, &pty.Winsize{Cols: uint16(cols), Rows: uint16(rows)})
 	if err != nil {
-		return nil, fmt.Errorf("start local shell: %w", err)
+		return nil, fmt.Errorf(tr("start local shell: %w", "启动本地 shell 失败：%w"), err)
 	}
 	return &unixTerminal{ptmx: ptmx, cmd: cmd}, nil
 }

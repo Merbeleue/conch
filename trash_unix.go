@@ -82,7 +82,7 @@ func copyToTrash(from, to string) error {
 		return os.Chmod(to, info.Mode().Perm())
 	}
 	if !info.Mode().IsRegular() {
-		return fmt.Errorf("%s is not a regular file", filepath.Base(from))
+		return fmt.Errorf(tr("%s is not a regular file", "%s 不是常规文件"), filepath.Base(from))
 	}
 	source, err := os.Open(from)
 	if err != nil {

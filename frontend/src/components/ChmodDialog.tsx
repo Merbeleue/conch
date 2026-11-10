@@ -8,6 +8,7 @@ import {
   setToPerm,
   type PermSet,
 } from "../lib/sftp";
+import { useI18n, type MessageKey } from "../lib/i18n";
 
 interface ChmodDialogProps {
   names: string[];
@@ -20,13 +21,13 @@ interface ChmodDialogProps {
   onClose: () => void;
 }
 
-const GROUPS: { key: keyof PermSet; label: string; hint: string }[] = [
+const GROUPS: { key: keyof PermSet; label: MessageKey; hint: MessageKey }[] = [
   { key: "owner", label: "Owner", hint: "the account that owns the file" },
-  { key: "group", label: "Group", hint: "users in the file's group" },
+  { key: "group", label: "chmod|Group", hint: "users in the file's group" },
   { key: "other", label: "Others", hint: "everyone else on the host" },
 ];
 
-const FLAGS: { key: "read" | "write" | "exec"; label: string; letter: string }[] = [
+const FLAGS: { key: "read" | "write" | "exec"; label: MessageKey; letter: string }[] = [
   { key: "read", label: "Read", letter: "r" },
   { key: "write", label: "Write", letter: "w" },
   { key: "exec", label: "Execute", letter: "x" },
@@ -44,6 +45,7 @@ export function ChmodDialog({
 }: ChmodDialogProps) {
   const [bits, setBits] = useState<PermSet>(() => permToSet(perm));
   const [octal, setOctal] = useState(() => permToOctal(perm));
+  const { t } = useI18n();
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -59,7 +61,9 @@ export function ChmodDialog({
 
   const current = setToPerm(bits);
   const heading =
-    names.length === 1 ? `“${names[0]}”` : `${names.length} selected items`;
+    names.length === 1
+      ? t("“{name}”", { name: names[0] })
+      : t("{count} selected items", { count: names.length });
 
   const syncOctal = (next: PermSet) => {
     setBits(next);
@@ -113,7 +117,7 @@ export function ChmodDialog({
             </svg>
           </span>
           <div className="sftp-confirm-heading">
-            <h2 id="sftp-chmod-title">Permissions</h2>
+            <h2 id="sftp-chmod-title">{t("Permissions")}</h2>
             <p className="sftp-chmod-sub">
               {heading} · {sourceLabel}
             </p>
@@ -127,7 +131,7 @@ export function ChmodDialog({
             spellCheck={false}
             inputMode="numeric"
             maxLength={4}
-            aria-label="Octal permissions"
+            aria-label={t("Octal permissions")}
             onChange={(event) => onOctalChange(event.target.value)}
             onKeyDown={(event) => {
               if (event.key === "Enter") {
@@ -143,13 +147,13 @@ export function ChmodDialog({
           <span className="sftp-chmod-corner" aria-hidden="true" />
           {FLAGS.map((flag) => (
             <span key={flag.key} className="sftp-chmod-flag">
-              {flag.label}
+              {t(flag.label)}
               <em>{flag.letter}</em>
             </span>
           ))}
           {GROUPS.map((group) => (
-            <div key={group.key} className="sftp-chmod-row" title={group.hint}>
-              <span className="sftp-chmod-group">{group.label}</span>
+            <div key={group.key} className="sftp-chmod-row" title={t(group.hint)}>
+              <span className="sftp-chmod-group">{t(group.label)}</span>
               {FLAGS.map((flag) => (
                 <label key={flag.key} className="sftp-chmod-cell">
                   <input
@@ -165,7 +169,9 @@ export function ChmodDialog({
         </div>
 
         {names.length > 1 && (
-          <p className="sftp-chmod-note">Applies to all {names.length} selected items.</p>
+          <p className="sftp-chmod-note">
+            {t("Applies to all {count} selected items.", { count: names.length })}
+          </p>
         )}
         {error && (
           <p className="sftp-chmod-error" role="alert">
@@ -175,7 +181,7 @@ export function ChmodDialog({
 
         <footer className="sftp-confirm-actions">
           <button type="button" className="ghost" onClick={onClose} disabled={busy}>
-            Cancel
+            {t("Cancel")}
           </button>
           <button
             type="button"
@@ -184,7 +190,7 @@ export function ChmodDialog({
             disabled={busy}
             autoFocus
           >
-            {busy ? "Applying…" : "Apply"}
+            {busy ? t("Applying…") : t("Apply")}
           </button>
         </footer>
       </section>

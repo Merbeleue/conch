@@ -1,4 +1,5 @@
 import { formatBytes, transferInFlight, type TransferState } from "../lib/transfer";
+import { useI18n, type Translate } from "../lib/i18n";
 
 interface TransferPanelProps {
   state: TransferState;
@@ -7,6 +8,7 @@ interface TransferPanelProps {
 }
 
 export function TransferPanel({ state, onCancel, onDismiss }: TransferPanelProps) {
+  const { t } = useI18n();
   const { phase } = state;
   const busy = transferInFlight(state);
   const completed = phase === "success";
@@ -18,14 +20,14 @@ export function TransferPanel({ state, onCancel, onDismiss }: TransferPanelProps
       className={`transfer-panel is-${phase}`}
       role="status"
       aria-live="polite"
-      aria-label="File transfer"
+      aria-label={t("File transfer")}
     >
       <header className="transfer-head">
         <span className="transfer-badge" aria-hidden="true">
           {badgeIcon(phase)}
         </span>
         <span className="transfer-head-text">
-          <span className="transfer-title">{titleFor(state)}</span>
+          <span className="transfer-title">{titleFor(state, t)}</span>
           <span className="transfer-target" title={`${state.sourceLabel} → ${state.targetLabel}`}>
             {state.sourceLabel} → {state.targetLabel}
           </span>
@@ -35,8 +37,8 @@ export function TransferPanel({ state, onCancel, onDismiss }: TransferPanelProps
             type="button"
             className="transfer-icon-button"
             onClick={onDismiss}
-            aria-label="Dismiss transfer status"
-            title="Dismiss"
+            aria-label={t("Dismiss transfer status")}
+            title={t("Dismiss")}
           >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
               <line x1="6" y1="6" x2="18" y2="18" />
@@ -52,7 +54,7 @@ export function TransferPanel({ state, onCancel, onDismiss }: TransferPanelProps
         aria-valuemin={0}
         aria-valuemax={100}
         aria-valuenow={percent}
-        aria-valuetext={`${percent} percent`}
+        aria-valuetext={t("{percent} percent", { percent })}
       >
         <span className="transfer-meter-fill" style={{ width: `${percent}%` }} />
       </div>
@@ -61,15 +63,18 @@ export function TransferPanel({ state, onCancel, onDismiss }: TransferPanelProps
         <span className="transfer-percent">{percentLabel}</span>
         <span className="transfer-bytes">
           {state.totalBytes > 0
-            ? `${formatBytes(state.bytes)} of ${formatBytes(state.totalBytes)}`
+            ? t("{done} of {total}", {
+                done: formatBytes(state.bytes),
+                total: formatBytes(state.totalBytes),
+              })
             : busy
-              ? "Preparing…"
+              ? t("Preparing…")
               : ""}
         </span>
       </div>
 
-      <p className="transfer-detail" title={detailFor(state)}>
-        {detailFor(state)}
+      <p className="transfer-detail" title={detailFor(state, t)}>
+        {detailFor(state, t)}
       </p>
 
       <footer className="transfer-actions">
@@ -80,11 +85,11 @@ export function TransferPanel({ state, onCancel, onDismiss }: TransferPanelProps
             onClick={onCancel}
             disabled={phase === "canceling"}
           >
-            {phase === "canceling" ? "Canceling…" : "Cancel"}
+            {phase === "canceling" ? t("Canceling…") : t("Cancel")}
           </button>
         ) : (
           <button type="button" className="ghost" onClick={onDismiss}>
-            Dismiss
+            {t("Dismiss")}
           </button>
         )}
       </footer>
@@ -92,39 +97,56 @@ export function TransferPanel({ state, onCancel, onDismiss }: TransferPanelProps
   );
 }
 
-function titleFor(state: TransferState): string {
-  const items = `${state.fileCount} ${state.fileCount === 1 ? "item" : "items"}`;
-  switch (state.phase) {
-    case "running":
-      return state.fileCount === 1 ? "Copying file" : `Copying ${items}`;
-    case "canceling":
-      return "Stopping transfer";
-    case "success":
-      return "Transfer complete";
-    case "error":
-      return "Transfer failed";
-    case "canceled":
-      return "Transfer canceled";
-  }
-  return "Transfer";
+function itemCount(state: TransferState, t: Translate): string {
+  return state.fileCount === 1
+    ? t("{count} item", { count: state.fileCount })
+    : t("{count} items", { count: state.fileCount });
 }
 
-function detailFor(state: TransferState): string {
-  const items = `${state.fileCount} ${state.fileCount === 1 ? "item" : "items"}`;
+function titleFor(state: TransferState, t: Translate): string {
+  switch (state.phase) {
+    case "running":
+      return state.fileCount === 1
+        ? t("Copying file")
+        : t("Copying {items}", { items: itemCount(state, t) });
+    case "canceling":
+      return t("Stopping transfer");
+    case "success":
+      return t("Transfer complete");
+    case "error":
+      return t("Transfer failed");
+    case "canceled":
+      return t("Transfer canceled");
+  }
+  return t("Transfer");
+}
+
+function detailFor(state: TransferState, t: Translate): string {
+  const items = itemCount(state, t);
   switch (state.phase) {
     case "running":
       if (state.currentName) {
-        return `${Math.min(state.fileIndex, state.fileCount)} of ${state.fileCount} · ${state.currentName}`;
+        return t("{index} of {count} · {name}", {
+          index: Math.min(state.fileIndex, state.fileCount),
+          count: state.fileCount,
+          name: state.currentName,
+        });
       }
-      return `${items} queued`;
+      return t("{items} queued", { items });
     case "canceling":
-      return "Stopping after the current chunk…";
+      return t("Stopping after the current chunk…");
     case "success":
-      return `${state.copied} of ${items} copied to ${state.targetLabel}`;
+      return t("{copied} of {items} copied to {target}", {
+        copied: state.copied,
+        items,
+        target: state.targetLabel,
+      });
     case "error":
-      return `${state.copied} of ${items} copied${state.error ? ` — ${state.error}` : ""}`;
+      return `${t("{copied} of {items} copied", { copied: state.copied, items })}${
+        state.error ? ` — ${state.error}` : ""
+      }`;
     case "canceled":
-      return `Canceled · ${state.copied} of ${items} copied`;
+      return t("Canceled · {copied} of {items} copied", { copied: state.copied, items });
   }
   return "";
 }

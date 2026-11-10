@@ -11,6 +11,7 @@ import { isWindows } from "../lib/platform";
 import { dropPainter, painterFor } from "../lib/highlight";
 import { inputTargets } from "../lib/inputBroadcast";
 import { attachSink, detachSink } from "../lib/sessionStream";
+import { exitReasonLabel, useI18n } from "../lib/i18n";
 import type { ExitInfo, SessionInfo, TerminalHandle } from "../types";
 
 /** Global terminal typography, applied to every pane and live-updated. */
@@ -110,6 +111,7 @@ export function TerminalPane({
   onReconnect,
   registerActions,
 }: TerminalPaneProps) {
+  const { language, t } = useI18n();
   const hostRef = useRef<HTMLDivElement | null>(null);
   const termRef = useRef<Terminal | null>(null);
   const fitRef = useRef<FitAddon | null>(null);
@@ -447,24 +449,24 @@ export function TerminalPane({
         {exit && (
           <div className="exit-layer">
             <div className="exit-card">
-              <p className="eyebrow">Session ended</p>
+              <p className="eyebrow">{t("Session ended")}</p>
               <h3>
                 {exit.Reason === "disconnected"
-                  ? "Disconnected"
+                  ? t("Disconnected")
                   : session.Kind === "local"
-                    ? "Local shell ended"
-                    : "Connection closed"}
+                    ? t("Local shell ended")
+                    : t("Connection closed")}
               </h3>
               <p className="exit-meta">
-                {exit.Reason}
+                {exitReasonLabel(exit.Reason, language)}
                 {exit.Error ? ` — ${exit.Error}` : ""}
               </p>
               <div className="exit-actions">
                 <button type="button" className="primary small" onClick={onReconnect}>
-                  Reconnect
+                  {t("Reconnect")}
                 </button>
                 <button type="button" className="ghost" onClick={onDisconnect}>
-                  Close
+                  {t("Close")}
                 </button>
               </div>
             </div>

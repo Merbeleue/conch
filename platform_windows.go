@@ -18,7 +18,7 @@ const (
 )
 
 // localSourceLabel names the local pane in the file manager's source picker.
-func localSourceLabel() string { return "This PC" }
+func localSourceLabel() string { return tr("This PC", "此电脑") }
 
 // windowsReserved are the device names Win32 still refuses to use as files,
 // with or without an extension.
@@ -38,14 +38,14 @@ func init() {
 // would otherwise surface as an opaque os.Rename failure.
 func platformNameProblem(name string) string {
 	if bad := strings.ContainsAny(name, `<>:"\|?*`); bad {
-		return `A name cannot contain \ / : * ? " < > |`
+		return tr(`A name cannot contain \ / : * ? " < > |`, `名称不能包含 \ / : * ? " < > |`)
 	}
 	stem := strings.ToLower(strings.SplitN(name, ".", 2)[0])
 	if windowsReserved[stem] {
-		return fmt.Sprintf("%q is a reserved name on Windows", strings.ToUpper(stem))
+		return trf("%q is a reserved name on Windows", "%q 是 Windows 的保留名称", strings.ToUpper(stem))
 	}
 	if strings.HasSuffix(name, ".") || strings.HasSuffix(name, " ") {
-		return "A name cannot end with a dot or a space on Windows"
+		return tr("A name cannot end with a dot or a space on Windows", "Windows 上的名称不能以点或空格结尾")
 	}
 	return ""
 }

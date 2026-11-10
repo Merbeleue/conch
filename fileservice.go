@@ -19,9 +19,12 @@ func NewFileService() *FileService {
 func (s *FileService) PickKeyFile() (string, error) {
 	app := application.Get()
 	dialog := app.Dialog.OpenFile().
-		SetTitle("Choose a private key").
-		SetMessage("Select the private key Conch should use for this host.").
-		SetButtonText("Use key").
+		SetTitle(tr("Choose a private key", "选择私钥")).
+		SetMessage(tr(
+			"Select the private key Conch should use for this host.",
+			"选择 Conch 连接此主机时要使用的私钥。",
+		)).
+		SetButtonText(tr("Use key", "使用密钥")).
 		CanChooseFiles(true).
 		CanChooseDirectories(false).
 		ShowHiddenFiles(true).

@@ -9,6 +9,7 @@ import type {
   WorkspaceTab,
 } from "../types";
 import { TerminalPane, type TerminalPrefs } from "./TerminalPane";
+import { translate, useI18n, type Language } from "../lib/i18n";
 
 /** Anchor for the "Split with" picker, in viewport coordinates. */
 export interface SplitAnchor {
@@ -50,6 +51,7 @@ interface NodeProps extends Omit<SplitWorkspaceProps, "workspace"> {
 }
 
 function NodeView({ node, workspace, count, ...rest }: NodeProps) {
+  const { language, t } = useI18n();
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [resizing, setResizing] = useState(false);
 
@@ -81,7 +83,7 @@ function NodeView({ node, workspace, count, ...rest }: NodeProps) {
         {count > 1 && (
           <div
             className="pane-head"
-            title="Drag this header to move the pane into another split"
+            title={t("Drag this header to move the pane into another split")}
             onPointerDown={(event) => {
               if (event.button !== 0) {
                 return;
@@ -113,13 +115,13 @@ function NodeView({ node, workspace, count, ...rest }: NodeProps) {
               aria-hidden="true"
             />
             <span className="pane-head-name">{session.label}</span>
-            <span className="pane-head-meta">{paneMeta(session)}</span>
+            <span className="pane-head-meta">{paneMeta(session, language)}</span>
             <span className="pane-head-actions">
               <button
                 type="button"
                 className="pane-action danger"
-                title="Close pane"
-                aria-label={`Close pane ${session.label}`}
+                title={t("Close pane")}
+                aria-label={t("Close pane {label}", { label: session.label })}
                 onClick={() => rest.onClosePane(workspace.id, node.sessionId)}
               >
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
@@ -204,7 +206,7 @@ function NodeView({ node, workspace, count, ...rest }: NodeProps) {
         className={dividerClass}
         role="separator"
         aria-orientation={node.direction === "row" ? "vertical" : "horizontal"}
-        title="Drag to resize · double-click to even up"
+        title={t("Drag to resize · double-click to even up")}
         onPointerDown={beginResize}
         onDoubleClick={() => rest.onRatioChange(workspace.id, node.id, 0.5)}
       >
@@ -217,10 +219,10 @@ function NodeView({ node, workspace, count, ...rest }: NodeProps) {
   );
 }
 
-function paneMeta(session: SessionTab): string {
+function paneMeta(session: SessionTab, language: Language): string {
   const { info } = session;
   if (info.Kind === "local") {
-    return `${info.User}@local`;
+    return translate(language, "{user}@local", { user: info.User });
   }
   return `${info.User}@${info.Host}:${info.Port}`;
 }

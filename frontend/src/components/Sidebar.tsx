@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { createPortal } from "react-dom";
 import type { SavedHost } from "../types";
 import { modKey } from "../lib/platform";
+import { useI18n } from "../lib/i18n";
 
 interface SidebarProps {
   hosts: SavedHost[];
@@ -96,6 +97,7 @@ export function Sidebar({
   onMoveToGroup,
   onSettings,
 }: SidebarProps) {
+  const { t } = useI18n();
   const [menu, setMenu] = useState<HostMenuState | null>(null);
   const [menuStage, setMenuStage] = useState<MenuStage>("root");
   const [newGroupName, setNewGroupName] = useState("");
@@ -316,7 +318,13 @@ export function Sidebar({
           type="button"
           className={connected ? "host is-connected" : "host"}
           data-host-id={host.id}
-          title={`${name}${connected ? " (connected)" : ""} — click to open, double-click to connect, right-click for more`}
+          title={
+            connected
+              ? t("{name} (connected) — click to open, double-click to connect, right-click for more", {
+                  name,
+                })
+              : t("{name} — click to open, double-click to connect, right-click for more", { name })
+          }
           onClick={() => scheduleOpen(host)}
           onDoubleClick={() => connectNow(host)}
         >
@@ -331,11 +339,11 @@ export function Sidebar({
             <span className="host-meta">
               {host.label ? (
                 <>
-                  {`${host.user || "default"}@`}
+                  {`${host.user || t("default")}@`}
                   <Highlight text={host.host} query={query} />:{host.port}
                 </>
               ) : (
-                `${host.user || "default"} · ${host.port}`
+                `${host.user || t("default")} · ${host.port}`
               )}
             </span>
           </span>
@@ -372,7 +380,7 @@ export function Sidebar({
         </span>
         <div className="brand-text">
           <h1>Conch</h1>
-          <span className="brand-sub">SSH workspace</span>
+          <span className="brand-sub">{t("SSH workspace")}</span>
         </div>
       </div>
 
@@ -382,14 +390,14 @@ export function Sidebar({
             <line x1="12" y1="5" x2="12" y2="19" />
             <line x1="5" y1="12" x2="19" y2="12" />
           </svg>
-          <span className="new-session-label">New connection</span>
+          <span className="new-session-label">{t("New connection")}</span>
         </button>
         <button
           type="button"
           className="new-session is-compact"
           onClick={onLocal}
-          title="Open a local shell"
-          aria-label="Open a local shell"
+          title={t("Open a local shell")}
+          aria-label={t("Open a local shell")}
         >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <rect x="3" y="4" width="18" height="16" rx="3" />
@@ -401,7 +409,7 @@ export function Sidebar({
 
       <div className="hosts">
         <div className="hosts-head">
-          <span className="hosts-head-title">Connections</span>
+          <span className="hosts-head-title">{t("Connections")}</span>
           <span className="count-pill">{hosts.length}</span>
         </div>
 
@@ -415,8 +423,8 @@ export function Sidebar({
               ref={searchRef}
               className="host-search-input"
               value={query}
-              placeholder="Search name or IP"
-              aria-label="Search saved hosts"
+              placeholder={t("Search name or IP")}
+              aria-label={t("Search saved hosts")}
               autoComplete="off"
               autoCapitalize="off"
               spellCheck={false}
@@ -432,7 +440,7 @@ export function Sidebar({
               <button
                 type="button"
                 className="host-search-clear"
-                aria-label="Clear search"
+                aria-label={t("Clear search")}
                 onClick={() => {
                   setQuery("");
                   searchRef.current?.focus();
@@ -460,18 +468,20 @@ export function Sidebar({
                   <line x1="7" y1="17.5" x2="7.01" y2="17.5" />
                 </svg>
               </span>
-              <p className="hosts-empty-title">No saved hosts yet</p>
+              <p className="hosts-empty-title">{t("No saved hosts yet")}</p>
               <p className="hosts-empty-body">
-                Every host you connect to is remembered here for one-click access.
+                {t("Every host you connect to is remembered here for one-click access.")}
               </p>
               <button type="button" className="hosts-empty-clear" onClick={onNew}>
-                New connection
+                {t("New connection")}
               </button>
             </div>
           ) : searching && matchedHosts.length === 0 ? (
             <div className="hosts-empty is-search">
-              <p className="hosts-empty-title">No matches for “{query.trim()}”</p>
-              <p className="hosts-empty-body">Try a different host name or IP address.</p>
+              <p className="hosts-empty-title">
+                {t("No matches for “{query}”", { query: query.trim() })}
+              </p>
+              <p className="hosts-empty-body">{t("Try a different host name or IP address.")}</p>
               <button
                 type="button"
                 className="hosts-empty-clear"
@@ -480,7 +490,7 @@ export function Sidebar({
                   searchRef.current?.focus();
                 }}
               >
-                Clear search
+                {t("Clear search")}
               </button>
             </div>
           ) : searching ? (
@@ -504,7 +514,7 @@ export function Sidebar({
                       <svg className="group-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                         <polyline points="9 6 15 12 9 18" />
                       </svg>
-                      <span className="host-group-name">{section.name || "Ungrouped"}</span>
+                      <span className="host-group-name">{section.name || t("Ungrouped")}</span>
                       <span className="host-group-rule" aria-hidden="true" />
                       <span className="host-group-count">{section.items.length}</span>
                     </button>
@@ -519,12 +529,12 @@ export function Sidebar({
 
       <div className="sidebar-foot">
         <span className="foot-dot" aria-hidden="true" />
-        <span>v0.2.0</span>
+        <span>v0.3.0</span>
         <button
           type="button"
           className="foot-settings"
-          title={`Settings (${modKey},)`}
-          aria-label="Open settings"
+          title={t("Settings ({key},)", { key: modKey })}
+          aria-label={t("Open settings")}
           onClick={onSettings}
         >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" aria-hidden="true">
@@ -558,7 +568,7 @@ export function Sidebar({
                 <path d="M5 12h13" />
                 <polyline points="13 7 18 12 13 17" />
               </svg>
-              Connect
+              {t("Connect")}
             </button>
             <button
               type="button"
@@ -571,7 +581,7 @@ export function Sidebar({
                 <rect x="9" y="9" width="11" height="11" rx="2.5" />
                 <path d="M5 15V6a2 2 0 0 1 2-2h9" />
               </svg>
-              Duplicate host
+              {t("Duplicate host")}
             </button>
             <button
               type="button"
@@ -584,7 +594,7 @@ export function Sidebar({
                 <path d="m4 16.5-.8 3.6a.6.6 0 0 0 .7.7l3.6-.8L19 8.5a2.1 2.1 0 0 0-3-3L4 16.5Z" />
                 <path d="m14.5 6.5 3 3" />
               </svg>
-              Edit details
+              {t("Edit details")}
             </button>
             <button
               type="button"
@@ -599,7 +609,7 @@ export function Sidebar({
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 <path d="M3 7.5A1.5 1.5 0 0 1 4.5 6h4l2 2.4h9A1.5 1.5 0 0 1 21 9.9v8.6a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 18.5Z" />
               </svg>
-              <span className="context-menu-grow">Move to group</span>
+              <span className="context-menu-grow">{t("Move to group")}</span>
               <svg className="context-menu-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 <polyline points="9 6 15 12 9 18" />
               </svg>
@@ -626,7 +636,7 @@ export function Sidebar({
                 <path d="M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12" />
                 <path d="M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2" />
               </svg>
-              Delete host
+              {t("Delete host")}
             </button>
           </div>,
           document.body,
@@ -638,11 +648,11 @@ export function Sidebar({
             ref={submenuRef}
             className="context-menu host-menu group-submenu"
             role="menu"
-            aria-label="Move to group"
+            aria-label={t("Move to group")}
             style={{ left: submenuLeft, top: submenuTop }}
           >
             <div className="context-menu-heading">
-              <span>Move to group</span>
+              <span>{t("Move to group")}</span>
             </div>
 
             {menuStage === "groups" && (
@@ -656,7 +666,7 @@ export function Sidebar({
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                       <path d="M3 7.5A1.5 1.5 0 0 1 4.5 6h4l2 2.4h9A1.5 1.5 0 0 1 21 9.9v8.6a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 18.5Z" />
                     </svg>
-                    <span className="context-menu-grow">Ungrouped</span>
+                    <span className="context-menu-grow">{t("Ungrouped")}</span>
                     {!menu.host.group && <CheckMark />}
                   </button>
                   {groupedNames.map((name) => (
@@ -687,7 +697,7 @@ export function Sidebar({
                     <line x1="12" y1="5" x2="12" y2="19" />
                     <line x1="5" y1="12" x2="19" y2="12" />
                   </svg>
-                  New group…
+                  {t("New group…")}
                 </button>
               </>
             )}
@@ -695,12 +705,12 @@ export function Sidebar({
             {menuStage === "new-group" && (
               <form className="context-menu-form" onSubmit={submitNewGroup}>
                 <label className="context-menu-field">
-                  <span>New group</span>
+                  <span>{t("New group")}</span>
                   <input
                     value={newGroupName}
                     autoFocus
                     spellCheck={false}
-                    placeholder="Group name"
+                    placeholder={t("Group name")}
                     onChange={(event) => setNewGroupName(event.target.value)}
                     onKeyDown={(event) => {
                       event.stopPropagation();
@@ -717,10 +727,10 @@ export function Sidebar({
                     className="context-menu-cancel"
                     onClick={() => setMenuStage("groups")}
                   >
-                    Cancel
+                    {t("Cancel")}
                   </button>
                   <button type="submit" className="context-menu-confirm" disabled={!newGroupName.trim()}>
-                    Move
+                    {t("Move")}
                   </button>
                 </div>
               </form>

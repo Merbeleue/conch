@@ -1,4 +1,5 @@
 import type { SFTPTransferEvent, SFTPTransferResult } from "../../bindings/conch/models";
+import { activeLanguageCode } from "./i18n";
 
 export type { SFTPTransferEvent, SFTPTransferResult };
 
@@ -55,7 +56,8 @@ export function formatModified(ms: number): string {
   const now = new Date();
   const sameYear = date.getFullYear() === now.getFullYear();
   try {
-    return new Intl.DateTimeFormat("en-US", {
+    // Follow the UI language: Chinese readers expect the local date order.
+    return new Intl.DateTimeFormat(activeLanguageCode() === "zh-CN" ? "zh-CN" : "en-US", {
       month: "short",
       day: "numeric",
       ...(sameYear ? {} : { year: "numeric" }),

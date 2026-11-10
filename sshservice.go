@@ -148,7 +148,7 @@ func NewSSHService() *SSHService {
 func (s *SSHService) Connect(req ConnectRequest) (*SessionInfo, error) {
 	host := strings.TrimSpace(req.Host)
 	if host == "" {
-		return nil, errors.New("host is required")
+		return nil, errors.New(tr("host is required", "请输入主机地址"))
 	}
 
 	port := req.Port
@@ -156,7 +156,7 @@ func (s *SSHService) Connect(req ConnectRequest) (*SessionInfo, error) {
 		port = 22
 	}
 	if port < 1 || port > 65535 {
-		return nil, fmt.Errorf("invalid port %d", port)
+		return nil, fmt.Errorf(tr("invalid port %d", "端口 %d 无效"), port)
 	}
 
 	username := strings.TrimSpace(req.User)
@@ -178,7 +178,7 @@ func (s *SSHService) Connect(req ConnectRequest) (*SessionInfo, error) {
 		if _, exists := s.pending[requestID]; exists {
 			s.mu.Unlock()
 			cancel()
-			return nil, errors.New("this connection attempt is already in progress")
+			return nil, errors.New(tr("this connection attempt is already in progress", "该连接请求已在进行中"))
 		}
 		s.pending[requestID] = pending
 		s.mu.Unlock()
@@ -261,7 +261,7 @@ func (s *SSHService) Connect(req ConnectRequest) (*SessionInfo, error) {
 		if cancelled() {
 			return nil, errConnectCancelled
 		}
-		return nil, fmt.Errorf("open session: %w", err)
+		return nil, fmt.Errorf(tr("open session: %w", "打开会话失败：%w"), err)
 	}
 
 	cols, rows := req.Cols, req.Rows
@@ -284,7 +284,7 @@ func (s *SSHService) Connect(req ConnectRequest) (*SessionInfo, error) {
 		if cancelled() {
 			return nil, errConnectCancelled
 		}
-		return nil, fmt.Errorf("request pty: %w", err)
+		return nil, fmt.Errorf(tr("request pty: %w", "请求终端失败：%w"), err)
 	}
 
 	stdin, err := session.StdinPipe()
@@ -295,7 +295,7 @@ func (s *SSHService) Connect(req ConnectRequest) (*SessionInfo, error) {
 		if cancelled() {
 			return nil, errConnectCancelled
 		}
-		return nil, fmt.Errorf("open stdin: %w", err)
+		return nil, fmt.Errorf(tr("open stdin: %w", "打开标准输入失败：%w"), err)
 	}
 	stdout, err := session.StdoutPipe()
 	if err != nil {
@@ -305,7 +305,7 @@ func (s *SSHService) Connect(req ConnectRequest) (*SessionInfo, error) {
 		if cancelled() {
 			return nil, errConnectCancelled
 		}
-		return nil, fmt.Errorf("open stdout: %w", err)
+		return nil, fmt.Errorf(tr("open stdout: %w", "打开标准输出失败：%w"), err)
 	}
 
 	if err := session.Shell(); err != nil {
@@ -315,7 +315,7 @@ func (s *SSHService) Connect(req ConnectRequest) (*SessionInfo, error) {
 		if cancelled() {
 			return nil, errConnectCancelled
 		}
-		return nil, fmt.Errorf("start shell: %w", err)
+		return nil, fmt.Errorf(tr("start shell: %w", "启动 shell 失败：%w"), err)
 	}
 
 	// Once committed, a late cancel must not tear down the live session.
@@ -492,7 +492,7 @@ func (s *SSHService) OpenLocal(termType string) (*SessionInfo, error) {
 func (s *SSHService) Write(sessionID string, data string) error {
 	sess := s.lookup(sessionID)
 	if sess == nil {
-		return errors.New("session not found")
+		return errors.New(tr("session not found", "会话不存在"))
 	}
 	sess.writeMu.Lock()
 	defer sess.writeMu.Unlock()
@@ -503,13 +503,13 @@ func (s *SSHService) Write(sessionID string, data string) error {
 func (s *SSHService) Resize(sessionID string, cols int, rows int) error {
 	sess := s.lookup(sessionID)
 	if sess == nil {
-		return errors.New("session not found")
+		return errors.New(tr("session not found", "会话不存在"))
 	}
 	if cols <= 0 || rows <= 0 {
 		return nil
 	}
 	if sess.resize == nil {
-		return errors.New("session does not support resizing")
+		return errors.New(tr("session does not support resizing", "该会话不支持调整大小"))
 	}
 	return sess.resize(cols, rows)
 }
@@ -548,7 +548,7 @@ func (s *SSHService) liveSSHSessions() []sshSessionRef {
 // session's SSH connection.
 func (s *SSHService) sftpFor(sess *sshSession) (*sftp.Client, error) {
 	if sess.client == nil {
-		return nil, errors.New("SFTP is only available for SSH sessions")
+		return nil, errors.New(tr("SFTP is only available for SSH sessions", "SFTP 仅适用于 SSH 会话"))
 	}
 	sess.sftpMu.Lock()
 	defer sess.sftpMu.Unlock()
@@ -557,12 +557,12 @@ func (s *SSHService) sftpFor(sess *sshSession) (*sftp.Client, error) {
 	}
 	select {
 	case <-sess.done:
-		return nil, errors.New("the SSH session is no longer connected")
+		return nil, errors.New(tr("the SSH session is no longer connected", "SSH 会话已断开"))
 	default:
 	}
 	client, err := sftp.NewClient(sess.client)
 	if err != nil {
-		return nil, fmt.Errorf("start SFTP: %w", err)
+		return nil, fmt.Errorf(tr("start SFTP: %w", "启动 SFTP 失败：%w"), err)
 	}
 	sess.sftpClient = client
 	return client, nil
@@ -734,19 +734,25 @@ func buildAuthMethods(req ConnectRequest) ([]ssh.AuthMethod, []func(), []string,
 		sock := os.Getenv("SSH_AUTH_SOCK")
 		if sock == "" {
 			if method == "agent" {
-				return nil, nil, nil, errors.New("ssh-agent is not running (SSH_AUTH_SOCK is empty)")
+				return nil, nil, nil, errors.New(tr(
+					"ssh-agent is not running (SSH_AUTH_SOCK is empty)",
+					"ssh-agent 未运行（SSH_AUTH_SOCK 为空）",
+				))
 			}
 		} else {
 			conn, err := net.Dial("unix", sock)
 			if err != nil {
 				if method == "agent" {
-					return nil, nil, nil, fmt.Errorf("connect to ssh-agent: %w", err)
+					return nil, nil, nil, fmt.Errorf(tr("connect to ssh-agent: %w", "连接 ssh-agent 失败：%w"), err)
 				}
 			} else {
 				cleanups = append(cleanups, func() { _ = conn.Close() })
 				agentClient := agent.NewClient(conn)
 				if keys, err := agentClient.List(); err == nil && len(keys) == 0 {
-					notes = append(notes, "ssh-agent is running but holds no keys")
+					notes = append(notes, tr(
+						"ssh-agent is running but holds no keys",
+						"ssh-agent 正在运行，但其中没有密钥",
+					))
 				}
 				methods = append(methods, ssh.PublicKeysCallback(agentClient.Signers))
 			}
@@ -762,11 +768,11 @@ func buildAuthMethods(req ConnectRequest) ([]ssh.AuthMethod, []func(), []string,
 			if err != nil {
 				if os.IsNotExist(err) {
 					if explicit {
-						notes = append(notes, fmt.Sprintf("%s does not exist", path))
+						notes = append(notes, trf("%s does not exist", "%s 不存在", path))
 					}
 					continue
 				}
-				notes = append(notes, fmt.Sprintf("%s: %s", path, describeReadError(err)))
+				notes = append(notes, trf("%s: %s", "%s：%s", path, describeReadError(err)))
 				continue
 			}
 			found = true
@@ -778,23 +784,26 @@ func buildAuthMethods(req ConnectRequest) ([]ssh.AuthMethod, []func(), []string,
 				signer, err = ssh.ParsePrivateKey(keyBytes)
 			}
 			if err != nil {
-				notes = append(notes, fmt.Sprintf("%s: %s", path, describeKeyError(err, keyBytes, req.Passphrase != "")))
+				notes = append(notes, trf("%s: %s", "%s：%s", path, describeKeyError(err, keyBytes, req.Passphrase != "")))
 				continue
 			}
 			methods = append(methods, ssh.PublicKeys(signer))
 		}
 		if method == "key" && !found && len(notes) == 0 {
-			return nil, nil, nil, fmt.Errorf("no private key found at %s", strings.Join(paths, ", "))
+			return nil, nil, nil, fmt.Errorf(tr("no private key found at %s", "在 %s 未找到私钥"), strings.Join(paths, ", "))
 		}
 		if method == "key" && len(methods) == 0 {
-			return nil, nil, nil, errors.New(joinOrNotes(notes, "the selected private key could not be used"))
+			return nil, nil, nil, errors.New(joinOrNotes(notes, tr(
+				"the selected private key could not be used",
+				"无法使用所选私钥",
+			)))
 		}
 	}
 
 	if usePassword {
 		if req.Password == "" {
 			if method == "password" {
-				return nil, nil, nil, errors.New("password is required")
+				return nil, nil, nil, errors.New(tr("password is required", "请输入密码"))
 			}
 		} else {
 			methods = append(methods, ssh.Password(req.Password))
@@ -802,7 +811,10 @@ func buildAuthMethods(req ConnectRequest) ([]ssh.AuthMethod, []func(), []string,
 	}
 
 	if len(methods) == 0 {
-		return nil, nil, notes, errors.New(joinOrNotes(notes, "no authentication method available: add a key, or enter a password"))
+		return nil, nil, notes, errors.New(joinOrNotes(notes, tr(
+			"no authentication method available: add a key, or enter a password",
+			"没有可用的认证方式：请添加密钥或输入密码",
+		)))
 	}
 	return methods, cleanups, notes, nil
 }
@@ -820,7 +832,7 @@ func joinOrNotes(notes []string, fallback string) string {
 // looks exactly like a broken key unless it is named.
 func describeReadError(err error) string {
 	if errors.Is(err, os.ErrPermission) {
-		return "permission denied" + keyPermissionHint()
+		return tr("permission denied", "没有读取权限") + keyPermissionHint()
 	}
 	return err.Error()
 }
@@ -829,9 +841,15 @@ func describeKeyError(err error, keyBytes []byte, gavePassphrase bool) string {
 	text := err.Error()
 	switch {
 	case !gavePassphrase && strings.Contains(text, "passphrase"):
-		return "is protected by a passphrase — enter it above, or use a key without one"
+		return tr(
+			"is protected by a passphrase — enter it above, or use a key without one",
+			"受密码短语保护 — 请在上方输入，或改用无密码短语的密钥",
+		)
 	case !bytes.Contains(keyBytes, []byte("-----BEGIN")):
-		return "does not look like a private key — choose the key itself, not the .pub file"
+		return tr(
+			"does not look like a private key — choose the key itself, not the .pub file",
+			"看起来不是私钥 — 请选择密钥文件本身，而不是 .pub 文件",
+		)
 	default:
 		return text
 	}
@@ -844,7 +862,7 @@ func hostKeyCallback(addr string, trustNew bool) (ssh.HostKeyCallback, error) {
 	if _, err := os.Stat(path); err == nil {
 		cb, err := knownhosts.New(path)
 		if err != nil {
-			return nil, fmt.Errorf("read %s: %w", path, err)
+			return nil, fmt.Errorf(tr("read %s: %w", "读取 %s 失败：%w"), path, err)
 		}
 		verify = cb
 	} else {
@@ -868,14 +886,14 @@ func hostKeyCallback(addr string, trustNew bool) (ssh.HostKeyCallback, error) {
 			return appendKnownHost(addr, key)
 		}
 
-		return fmt.Errorf("host key mismatch for %s: %w", addr, err)
+		return fmt.Errorf(tr("host key mismatch for %s: %w", "主机密钥不匹配（%s）：%w"), addr, err)
 	}, nil
 }
 
 func appendKnownHost(addr string, key ssh.PublicKey) error {
 	path := knownHostsPath()
 	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
-		return fmt.Errorf("create ~/.ssh: %w", err)
+		return fmt.Errorf(tr("create ~/.ssh: %w", "创建 ~/.ssh 失败：%w"), err)
 	}
 
 	knownHostsMu.Lock()
@@ -883,13 +901,13 @@ func appendKnownHost(addr string, key ssh.PublicKey) error {
 
 	file, err := os.OpenFile(path, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600)
 	if err != nil {
-		return fmt.Errorf("open known_hosts: %w", err)
+		return fmt.Errorf(tr("open known_hosts: %w", "打开 known_hosts 失败：%w"), err)
 	}
 	defer file.Close()
 
 	line := knownhosts.Line([]string{knownhosts.Normalize(addr)}, key)
 	if _, err := fmt.Fprintln(file, line); err != nil {
-		return fmt.Errorf("update known_hosts: %w", err)
+		return fmt.Errorf(tr("update known_hosts: %w", "更新 known_hosts 失败：%w"), err)
 	}
 	return nil
 }
@@ -957,14 +975,47 @@ func formatDialError(err error, addr string, notes ...string) error {
 	}
 	if strings.Contains(msg, "unable to authenticate") {
 		if len(notes) > 0 {
-			return fmt.Errorf("authentication failed for %s — %s", addr, strings.Join(notes, "; "))
+			return fmt.Errorf(tr(
+				"authentication failed for %s — %s",
+				"对 %s 认证失败 — %s",
+			), addr, strings.Join(notes, "; "))
 		}
-		return fmt.Errorf("authentication failed for %s: check your username and credentials", addr)
+		return fmt.Errorf(tr(
+			"authentication failed for %s: check your username and credentials",
+			"对 %s 认证失败：请检查用户名和登录凭据",
+		), addr)
 	}
 	if strings.Contains(msg, "no supported methods") || strings.Contains(msg, "none no more methods to try") {
 		if len(notes) > 0 {
-			return fmt.Errorf("the server refused every method for %s — %s", addr, strings.Join(notes, "; "))
+			return fmt.Errorf(tr(
+				"the server refused every method for %s — %s",
+				"服务器拒绝了 %s 的所有认证方式 — %s",
+			), addr, strings.Join(notes, "; "))
 		}
 	}
-	return fmt.Errorf("connect to %s: %w", addr, err)
+	if kind := netErrorHint(msg); kind != "" {
+		return fmt.Errorf(tr("connect to %s — %s: %w", "连接 %s 失败 — %s：%w"), addr, kind, err)
+	}
+	return fmt.Errorf(tr("connect to %s: %w", "连接 %s 失败：%w"), addr, err)
+}
+
+// netErrorHint names the network failures a dial produces verbatim from Go, so
+// a Chinese screen does not stop at "dial tcp …: i/o timeout". The raw error is
+// still appended: the address and errno are what a user pastes into a bug
+// report, and the hint is what tells them where to look first.
+func netErrorHint(msg string) string {
+	switch {
+	case strings.Contains(msg, "i/o timeout"), strings.Contains(msg, "operation timed out"):
+		return tr("the host did not answer in time", "主机超时未响应，请检查网络或防火墙")
+	case strings.Contains(msg, "connection refused"):
+		return tr("nothing is listening on that port", "该端口没有服务在监听")
+	case strings.Contains(msg, "no such host"), strings.Contains(msg, "server could not be found"):
+		return tr("the name could not be resolved", "无法解析该主机名")
+	case strings.Contains(msg, "network is unreachable"), strings.Contains(msg, "no route to host"),
+		strings.Contains(msg, "network down"):
+		return tr("there is no route to the host", "没有到达主机的网络路径")
+	case strings.Contains(msg, "connection reset"):
+		return tr("the connection was reset", "连接被重置")
+	}
+	return ""
 }

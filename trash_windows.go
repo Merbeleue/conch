@@ -82,10 +82,10 @@ func moveToTrash(value string) error {
 	runtime.KeepAlive(encoded)
 
 	if op.fAnyOperationsAborted != 0 {
-		return fmt.Errorf("%s: the delete was cancelled", filepath.Base(value))
+		return fmt.Errorf(tr("%s: the delete was cancelled", "%s：删除已取消"), filepath.Base(value))
 	}
 	if ret != 0 {
-		return fmt.Errorf("%s: could not be moved to the Recycle Bin (0x%x)", filepath.Base(value), uint32(ret))
+		return fmt.Errorf(tr("%s: could not be moved to the Recycle Bin (0x%x)", "%s：无法移到回收站（0x%x）"), filepath.Base(value), uint32(ret))
 	}
 	return nil
 }

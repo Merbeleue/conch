@@ -5,6 +5,7 @@ import type { ConnectRequest, SavedHost } from "../types";
 import { GroupCombobox } from "./GroupCombobox";
 import { ThemeSelect } from "./ThemePicker";
 import { osName } from "../lib/platform";
+import { useI18n, type MessageKey } from "../lib/i18n";
 
 interface ConnectFormProps {
   initial: SavedHost | null;
@@ -19,8 +20,8 @@ interface ConnectFormProps {
 
 const AUTH_METHODS: Array<{
   id: ConnectRequest["AuthMethod"];
-  label: string;
-  hint: string;
+  label: MessageKey;
+  hint: MessageKey;
 }> = [
   { id: "password", label: "Password", hint: "Sign in with the account password." },
   { id: "key", label: "Private key", hint: "Sign in with an SSH key on this Mac." },
@@ -36,6 +37,7 @@ export function ConnectForm({
   onConnect,
   onSave,
 }: ConnectFormProps) {
+  const { t } = useI18n();
   const [label, setLabel] = useState(initial?.label ?? "");
   const [group, setGroup] = useState(initial?.group ?? "");
   const [host, setHost] = useState(initial?.host ?? "");
@@ -144,13 +146,13 @@ export function ConnectForm({
       <div className="connect-card">
         <header className="connect-head">
           <p className="eyebrow">
-            {editing ? "Saved host" : "New session"}
+            {editing ? t("Saved host") : t("New session")}
           </p>
-          <h2>{editing ? "Edit host info" : "Connect to a host"}</h2>
+          <h2>{editing ? t("Edit host info") : t("Connect to a host")}</h2>
           <p className="sub">
             {editing
-              ? "Save your changes without connecting, or connect with the updated details."
-              : "SSH over TCP with a private key or password."}
+              ? t("Save your changes without connecting, or connect with the updated details.")
+              : t("SSH over TCP with a private key or password.")}
           </p>
         </header>
 
@@ -158,12 +160,12 @@ export function ConnectForm({
           <div className="field-row">
             <label className="field grow">
               <span>
-                Label <span className="field-optional">optional</span>
+                {t("Label")} <span className="field-optional">{t("optional")}</span>
               </span>
               <input
                 value={label}
                 onChange={(event) => setLabel(event.target.value)}
-                placeholder="Production, db-01…"
+                placeholder={t("Production, db-01…")}
                 autoComplete="off"
                 spellCheck={false}
               />
@@ -171,7 +173,7 @@ export function ConnectForm({
 
             <div className="field grow">
               <span>
-                Group <span className="field-optional">optional</span>
+                {t("Group")} <span className="field-optional">{t("optional")}</span>
               </span>
               <GroupCombobox groups={groups} value={group} onChange={setGroup} />
             </div>
@@ -179,11 +181,11 @@ export function ConnectForm({
 
           <div className="field-row">
             <label className="field grow">
-              <span>Host</span>
+              <span>{t("Host")}</span>
               <input
                 value={host}
                 onChange={(event) => setHost(event.target.value)}
-                placeholder="example.com or 192.168.1.10"
+                placeholder={t("example.com or 192.168.1.10")}
                 autoComplete="off"
                 autoCapitalize="off"
                 spellCheck={false}
@@ -191,7 +193,7 @@ export function ConnectForm({
               />
             </label>
             <label className="field port">
-              <span>Port</span>
+              <span>{t("Port")}</span>
               <input
                 value={port}
                 onChange={(event) => setPort(event.target.value)}
@@ -204,11 +206,11 @@ export function ConnectForm({
           </div>
 
           <label className="field">
-            <span>Username</span>
+            <span>{t("Username")}</span>
             <input
               value={username}
               onChange={(event) => setUsername(event.target.value)}
-              placeholder={`Defaults to your ${osName} user`}
+              placeholder={t("Defaults to your {os} user", { os: osName })}
               autoComplete="off"
               autoCapitalize="off"
               spellCheck={false}
@@ -217,25 +219,25 @@ export function ConnectForm({
 
           <div className="theme-field">
             <span className="field-label">
-              Theme <span className="field-optional">host override</span>
+              {t("Theme")} <span className="field-optional">{t("host override")}</span>
             </span>
             <ThemeSelect value={theme} globalTheme={globalTheme} onChange={setTheme} />
           </div>
 
           <div className="auth-block">
-            <span className="field-label">Authentication</span>
-            <div className="segmented" role="tablist" aria-label="Authentication method">
+            <span className="field-label">{t("Authentication")}</span>
+            <div className="segmented" role="tablist" aria-label={t("Authentication method")}>
               {AUTH_METHODS.map((method) => (
                 <button
                   key={method.id}
                   type="button"
                   role="tab"
-                  title={method.hint}
+                  title={t(method.hint)}
                   aria-selected={authMethod === method.id}
                   className={authMethod === method.id ? "segment is-active" : "segment"}
                   onClick={() => setAuthMethod(method.id)}
                 >
-                  {method.label}
+                  {t(method.label)}
                 </button>
               ))}
             </div>
@@ -244,11 +246,11 @@ export function ConnectForm({
               {authMethod === "key" && (
                 <>
                   <div className="field">
-                    <span>Key file</span>
+                    <span>{t("Key file")}</span>
                     <div className="field-picker">
                       <input
                         value={keyPath}
-                        aria-label="Private key path"
+                        aria-label={t("Private key path")}
                         onChange={(event) => setKeyPath(event.target.value)}
                         placeholder="~/.ssh/id_ed25519"
                         autoComplete="off"
@@ -263,17 +265,17 @@ export function ConnectForm({
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                           <path d="M3 8.5A1.5 1.5 0 0 1 4.5 7h4l2 2.4h9A1.5 1.5 0 0 1 21 10.9v7.6a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 18.5Z" />
                         </svg>
-                        {pickingKey ? "Choosing…" : "Choose file"}
+                        {pickingKey ? t("Choosing…") : t("Choose file")}
                       </button>
                     </div>
                   </div>
                   <label className="field">
-                    <span>Passphrase</span>
+                    <span>{t("Passphrase")}</span>
                     <input
                       type="password"
                       value={passphrase}
                       onChange={(event) => setPassphrase(event.target.value)}
-                      placeholder="Only if the key is encrypted"
+                      placeholder={t("Only if the key is encrypted")}
                       autoComplete="off"
                     />
                   </label>
@@ -284,9 +286,9 @@ export function ConnectForm({
                       onChange={(event) => setSavePassphrase(event.target.checked)}
                     />
                     <span>
-                      Save passphrase
+                      {t("Save passphrase")}
                       <span className="check-hint">
-                        Needed for an encrypted key to connect from the sidebar
+                        {t("Needed for an encrypted key to connect from the sidebar")}
                       </span>
                     </span>
                   </label>
@@ -296,12 +298,12 @@ export function ConnectForm({
               {authMethod === "password" && (
                 <>
                   <label className="field">
-                    <span>Password</span>
+                    <span>{t("Password")}</span>
                     <input
                       type="password"
                       value={password}
                       onChange={(event) => setPassword(event.target.value)}
-                      placeholder="Required for password auth"
+                      placeholder={t("Required for password auth")}
                       autoComplete="off"
                     />
                   </label>
@@ -312,8 +314,8 @@ export function ConnectForm({
                       onChange={(event) => setSavePassword(event.target.checked)}
                     />
                     <span>
-                      Save password
-                      <span className="check-hint">Stored in Conch and used automatically next time</span>
+                      {t("Save password")}
+                      <span className="check-hint">{t("Stored in Conch and used automatically next time")}</span>
                     </span>
                   </label>
                 </>
@@ -343,17 +345,17 @@ export function ConnectForm({
                 <path d="M5 3h11l3 3v15H5z" />
                 <path d="M8 3v6h8V3M8 21v-7h8v7" />
               </svg>
-              {editing ? "Save changes" : "Save"}
+              {editing ? t("Save changes") : t("Save")}
             </button>
             <button type="submit" className="primary" disabled={!host.trim() || connecting}>
               {connecting ? (
                 <>
                   <span className="spinner" aria-hidden="true" />
-                  Connecting
+                  {t("Connecting")}
                 </>
               ) : (
                 <>
-                  Connect
+                  {t("Connect")}
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                     <line x1="5" y1="12" x2="19" y2="12" />
                     <polyline points="13 6 19 12 13 18" />
